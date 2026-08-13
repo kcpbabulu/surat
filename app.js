@@ -1135,3 +1135,77 @@ document.addEventListener('change', function(e) {
     }
 });
 
+// ========================================================
+// --- FITUR SUPER AUTO-FILL (ANTI-CRASH / ANTI-ERROR) ---
+// ========================================================
+document.addEventListener('change', function(e) {
+    try {
+        // Helper Cerdas: Mengonversi format tanggal tanpa bug Timezone
+        const formatToDateInput = (dateStr) => {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            if (!isNaN(d.getTime())) {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+            
+            // Memecah format Indonesia manual
+            const parts = String(dateStr).split(/[\/\-]/); 
+            if (parts.length === 3) {
+                if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+            return dateStr;
+        };
+
+        // 1. LOGIKA SUPER AUTO-FILL SPPK
+        if (e.target.name === 'namaDebitur' || e.target.name === 'debiturSPPK') {
+            const form = e.target.closest('form');
+            
+            // CEGAH CRASH: Pastikan form ada dan data surat-masuk sudah dimuat dari server
+            if(form && storeData['surat-masuk']) {
+                const smData = storeData['surat-masuk'].find(d => d.jenisSurat === 'D1' && d.pengirim === e.target.value);
+                if (smData) {
+                    const inputTgl = form.querySelector('input[name="tanggalSPPK"]');
+                    if (inputTgl && smData.tanggal) inputTgl.value = formatToDateInput(smData.tanggal);
+                    
+                    const inputPlafon = form.querySelector('input[name="plafon"]');
+                    if (inputPlafon && smData.plafon) inputPlafon.value = smData.plafon;
+                    
+                    const inputWaktu = form.querySelector('input[name="jangkaWaktu"]');
+                    if (inputWaktu && smData.jangkaWaktu) inputWaktu.value = smData.jangkaWaktu;
+                    
+                    const inputJenisKredit = form.querySelector('select[name="jenisKredit"], input[name="jenisKredit"]');
+                    if (inputJenisKredit && smData.jenisKredit) inputJenisKredit.value = smData.jenisKredit;
+                }
+            }
+        }
+
+        // 2. LOGIKA SUPER AUTO-FILL PK
+        if (e.target.name === 'nomorSPPK' || e.target.name === 'sppkInduk') {
+            const form = e.target.closest('form');
+            
+            // CEGAH CRASH: Pastikan form ada dan data SPPK sudah dimuat dari server
+            if(form && storeData['sppk']) {
+                const sppkData = storeData['sppk'].find(d => d.nomorSPPK === e.target.value);
+                if (sppkData) {
+                    const inputTgl = form.querySelector('input[name="tanggalPK"]');
+                    if (inputTgl && sppkData.tanggal) inputTgl.value = formatToDateInput(sppkData.tanggal);
+                    
+                    const inputDebitur = form.querySelector('input[name="namaDebitur"], select[name="namaDebitur"]');
+                    if (inputDebitur && sppkData.debitur) inputDebitur.value = sppkData.debitur;
+                    
+                    const inputPlafon = form.querySelector('input[name="plafon"]');
+                    if (inputPlafon && sppkData.plafon) inputPlafon.value = sppkData.plafon;
+                }
+            }
+        }
+    } catch (err) {
+        // Jika masih ada anomali input, tangkap errornya secara diam-diam (Silent Fail)
+        // Sehingga tabel daftar surat tetap aman dan muncul tanpa masalah!
+        console.error("Auto-Fill Background Info: ", err);
+    }
+});
+
