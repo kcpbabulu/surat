@@ -287,47 +287,98 @@ async function loadDataTabel(jenis) {
 }
 
 // ========================================================
-// --- OMNISEARCH PINTAR (ANTI-ERROR VERSI 2) ---
+// --- OMNISEARCH PINTAR (ANTI-ERROR & SORTING ENGINE) ---
 // ========================================================
-function applyFilter(jenis, page = 1) {
-    let targetDataJenis = jenis === 'disposisi' ? 'surat-masuk' : jenis; 
-    if(!storeData[targetDataJenis]) return;
-    let data = [...storeData[targetDataJenis]]; const tbody = document.getElementById(`tbody-${jenis}`); if(!tbody) return;
-    currentPage[jenis] = page;
+function applyFilter(jenis) {
+    try {
+        let targetData = jenis === 'disposisi' ? 'surat-masuk' : jenis;
+        let data = storeData[targetData] || [];
 
-    if(['surat-masuk','surat-keluar','sppk','pk','arsip', 'disposisi'].includes(jenis)) {
-        const searchVal = document.getElementById(`search-${jenis}`) ? document.getElementById(`search-${jenis}`).value.toLowerCase() : '';
-        const sortVal = document.getElementById(`sort-${jenis}`) ? document.getElementById(`sort-${jenis}`).value : 'newest';
-        const cabVal = document.getElementById(`fil-cabang-${jenis}`) ? document.getElementById(`fil-cabang-${jenis}`).value : '';
-        const thnVal = document.getElementById(`fil-tahun-${jenis}`) ? document.getElementById(`fil-tahun-${jenis}`).value : '';
-        const blnVal = document.getElementById(`fil-bulan-${jenis}`) ? document.getElementById(`fil-bulan-${jenis}`).value : '';
-        const jnsVal = document.getElementById(`fil-jenis-surat-${jenis}`) ? document.getElementById(`fil-jenis-surat-${jenis}`).value : '';
-        const katVal = document.getElementById(`fil-kategori-arsip`) ? document.getElementById(`fil-kategori-arsip`).value : '';
+        const viewSection = document.getElementById(`view-${jenis}`);
+        if (!viewSection) return;
 
-        data = data.filter(item => {
-            let mTxt = true, mCb = true, mThn = true, mBln = true, mJns = true, mKat = true, mKategori = true;
-            let target = (item.nomor||item.nomorSPPK||item.nomorPK||'') + " " + (item.pengirim||item.tujuan||item.debitur||item.deskripsi||'');
-            if(searchVal) mTxt = target.toLowerCase().includes(searchVal);
-            if(cabVal && item.cabang && jenis !== 'disposisi') mCb = item.cabang.includes(cabVal) || item.cabang === cabVal;
-            if(jnsVal && item.jenisSurat && jenis !== 'disposisi') mJns = item.jenisSurat === jnsVal;
-            if(katVal && item.kategori && jenis !== 'disposisi') mKat = item.kategori === katVal;
-            if(item.tanggal && jenis !== 'disposisi') { const d = new Date(item.tanggal); if(thnVal) mThn = d.getFullYear().toString() === thnVal; if(blnVal) mBln = ("0"+(d.getMonth()+1)).slice(-2) === blnVal; }
+        // Tarik elemen filter secara spesifik berdasarkan ID HTML Anda
+        const searchInput = document.getElementById(`search-${jenis}`);
+        const sortInput = document.getElementById(`sort-${jenis}`);
+        const cabangInput = document.getElementById(`fil-cabang-${jenis}`);
+        const bulanInput = document.getElementById(`fil-bulan-${jenis}`);
+        const tahunInput = document.getElementById(`fil-tahun-${jenis}`);
+        const jenisSuratInput = document.getElementById(`fil-jenis-surat-${jenis}`);
+        const kategoriArsipInput = document.getElementById(`fil-kategori-arsip`);
 
-            if(jenis === 'disposisi') {
-                mKategori = item.jenisSurat !== 'D1';
-                if(currentUser && currentUser.role === 'Staf') { mKategori = mKategori && item.disposisiKe === currentUser.nama; }
+        const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const keywordsArray = keyword.split(' ').filter(k => k !== '');
+
+        // 1. FILTERING (Penyaringan)
+        let filteredData = data.filter(item => {
+            if (!item) return false;
+
+            // Omnisearch Text (Mencari di semua kolom)
+            const allText = Object.values(item).map(val => String(val || '').toLowerCase()).join(' ');
+            let isMatchKeyword = true;
+            if (keywordsArray.length > 0) {
+                isMatchKeyword = keywordsArray.every(kw => allText.includes(kw));
             }
-            return mTxt && mCb && mThn && mBln && mJns && mKat && mKategori;
+
+            // Dropdown Cabang
+            let isMatchCabang = true;
+            if (cabangInput && cabangInput.value) isMatchCabang = item.cabang === cabangInput.value;
+
+            // Dropdown Bulan & Tahun
+            let isMatchBulan = true;
+            let isMatchTahun = true;
+            if (item.tanggal) {
+                const dateObj = new Date(item.tanggal);
+                if (!isNaN(dateObj.getTime())) {
+                    const itemBulan = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const itemTahun = String(dateObj.getFullYear());
+                    if (bulanInput && bulanInput.value) isMatchBulan = (itemBulan === bulanInput.value);
+                    if (tahunInput && tahunInput.value) isMatchTahun = (itemTahun === tahunInput.value);
+                }
+            }
+
+            // Dropdown Jenis / Kategori
+            let isMatchJenis = true;
+            if (jenisSuratInput && jenisSuratInput.value) isMatchJenis = item.jenisSurat === jenisSuratInput.value;
+            if (kategoriArsipInput && kategoriArsipInput.value) {
+                isMatchJenis = (item.kategori === kategoriArsipInput.value || item.jenisSurat === kategoriArsipInput.value || item.jenisKredit === kategoriArsipInput.value);
+            }
+
+            // Khusus Disposisi
+            let isDisposisiValid = true;
+            if (jenis === 'disposisi') {
+                isDisposisiValid = item.status && (item.status.includes('Disposisi') || item.status.includes('Selesai'));
+            }
+
+            return isMatchKeyword && isMatchCabang && isMatchBulan && isMatchTahun && isMatchJenis && isDisposisiValid;
         });
 
-        data.sort((a, b) => { let da = new Date(a.tanggal), db = new Date(b.tanggal); if(sortVal === 'newest') return db - da; if(sortVal === 'oldest') return da - db; });
-    }
+        // 2. SORTING (Pengurutan Data)
+        if (sortInput && sortInput.value) {
+            const sortVal = sortInput.value;
+            filteredData.sort((a, b) => {
+                if (sortVal === 'newest' || sortVal === 'oldest') {
+                    let dateA = new Date(a.tanggal || 0).getTime();
+                    let dateB = new Date(b.tanggal || 0).getTime();
+                    return sortVal === 'newest' ? dateB - dateA : dateA - dateB;
+                }
+                if (sortVal === 'az' || sortVal === 'za') {
+                    let textA = String(a.pengirim || a.debitur || a.nomor || '').toLowerCase();
+                    let textB = String(b.pengirim || b.debitur || b.nomor || '').toLowerCase();
+                    if (textA < textB) return sortVal === 'az' ? -1 : 1;
+                    if (textA > textB) return sortVal === 'az' ? 1 : -1;
+                    return 0;
+                }
+                return 0;
+            });
+        }
 
-    const rowsPerPage = 10;
-    const startIndex = (page - 1) * rowsPerPage;
-    const paginatedData = data.slice(startIndex, startIndex + rowsPerPage);
-    renderHTMLTabel(jenis, paginatedData, tbody);
-    if(['surat-masuk','surat-keluar','sppk','pk','arsip','disposisi'].includes(jenis)) { renderPagination(jenis, data.length, page, rowsPerPage); }
+        const tbody = document.getElementById(`tbody-${jenis}`);
+        if (tbody) renderHTMLTabel(jenis, filteredData, tbody);
+        
+    } catch (error) {
+        console.error("Filter Error: ", error);
+    }
 }
 
 function renderPagination(jenis, totalItems, page, rowsPerPage) {
@@ -1136,22 +1187,16 @@ document.addEventListener('change', function(e) {
 });
 
 // ========================================================
-// --- FITUR SUPER AUTO-FILL (ANTI-CRASH / ANTI-ERROR) ---
+// --- FITUR SUPER AUTO-FILL BERDASARKAN ID DROPDOWN ---
 // ========================================================
 document.addEventListener('change', function(e) {
     try {
-        // Helper Cerdas: Mengonversi format tanggal tanpa bug Timezone
         const formatToDateInput = (dateStr) => {
             if (!dateStr) return '';
             const d = new Date(dateStr);
             if (!isNaN(d.getTime())) {
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             }
-            
-            // Memecah format Indonesia manual
             const parts = String(dateStr).split(/[\/\-]/); 
             if (parts.length === 3) {
                 if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
@@ -1160,51 +1205,48 @@ document.addEventListener('change', function(e) {
             return dateStr;
         };
 
-        // 1. LOGIKA SUPER AUTO-FILL SPPK
-        if (e.target.name === 'namaDebitur' || e.target.name === 'debiturSPPK') {
+        // 1. AUTO-FILL SPPK (Target ID: sppk-sumber-d1)
+        if (e.target.id === 'sppk-sumber-d1') {
             const form = e.target.closest('form');
-            
-            // CEGAH CRASH: Pastikan form ada dan data surat-masuk sudah dimuat dari server
             if(form && storeData['surat-masuk']) {
-                const smData = storeData['surat-masuk'].find(d => d.jenisSurat === 'D1' && d.pengirim === e.target.value);
+                // Dropdown D1 biasanya berisi Nomor Surat, kita cari kecocokannya
+                const selectedText = e.target.options[e.target.selectedIndex].text;
+                const smData = storeData['surat-masuk'].find(d => selectedText.includes(d.nomor) || d.nomor === e.target.value);
+                
                 if (smData) {
                     const inputTgl = form.querySelector('input[name="tanggalSPPK"]');
                     if (inputTgl && smData.tanggal) inputTgl.value = formatToDateInput(smData.tanggal);
                     
                     const inputPlafon = form.querySelector('input[name="plafon"]');
-                    if (inputPlafon && smData.plafon) inputPlafon.value = smData.plafon;
-                    
-                    const inputWaktu = form.querySelector('input[name="jangkaWaktu"]');
-                    if (inputWaktu && smData.jangkaWaktu) inputWaktu.value = smData.jangkaWaktu;
-                    
-                    const inputJenisKredit = form.querySelector('select[name="jenisKredit"], input[name="jenisKredit"]');
-                    if (inputJenisKredit && smData.jenisKredit) inputJenisKredit.value = smData.jenisKredit;
+                    if (inputPlafon && smData.plafon) {
+                        inputPlafon.value = smData.plafon;
+                        inputPlafon.dispatchEvent(new Event('input')); // Memaksa format rupiah berjalan
+                    }
                 }
             }
         }
 
-        // 2. LOGIKA SUPER AUTO-FILL PK
-        if (e.target.name === 'nomorSPPK' || e.target.name === 'sppkInduk') {
+        // 2. AUTO-FILL PK (Target ID: select-sppk-induk)
+        if (e.target.id === 'select-sppk-induk') {
             const form = e.target.closest('form');
-            
-            // CEGAH CRASH: Pastikan form ada dan data SPPK sudah dimuat dari server
             if(form && storeData['sppk']) {
                 const sppkData = storeData['sppk'].find(d => d.nomorSPPK === e.target.value);
                 if (sppkData) {
                     const inputTgl = form.querySelector('input[name="tanggalPK"]');
                     if (inputTgl && sppkData.tanggal) inputTgl.value = formatToDateInput(sppkData.tanggal);
                     
-                    const inputDebitur = form.querySelector('input[name="namaDebitur"], select[name="namaDebitur"]');
+                    const inputDebitur = form.querySelector('input[name="namaDebitur"]');
                     if (inputDebitur && sppkData.debitur) inputDebitur.value = sppkData.debitur;
                     
                     const inputPlafon = form.querySelector('input[name="plafon"]');
-                    if (inputPlafon && sppkData.plafon) inputPlafon.value = sppkData.plafon;
+                    if (inputPlafon && sppkData.plafon) {
+                        inputPlafon.value = sppkData.plafon;
+                        inputPlafon.dispatchEvent(new Event('input')); // Memaksa format rupiah berjalan
+                    }
                 }
             }
         }
     } catch (err) {
-        // Jika masih ada anomali input, tangkap errornya secara diam-diam (Silent Fail)
-        // Sehingga tabel daftar surat tetap aman dan muncul tanpa masalah!
         console.error("Auto-Fill Background Info: ", err);
     }
 });
