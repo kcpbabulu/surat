@@ -1131,3 +1131,55 @@ document.addEventListener('change', function(e) {
         }
     }
 });
+
+// ========================================================
+// --- FITUR AUTO-FILL TANGGAL OTOMATIS (SM -> SPPK -> PK) ---
+// ========================================================
+document.addEventListener('change', function(e) {
+    
+    // Helper Cerdas: Mengonversi format tanggal apapun (dari Google Sheet)
+    // Menjadi format YYYY-MM-DD standar Internasional agar bisa masuk ke <input type="date">
+    const formatToDateInput = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        
+        // Memecah format Indonesia (DD/MM/YYYY) atau (DD-MM-YYYY)
+        const parts = dateStr.split(/[\/\-]/); 
+        if (parts.length === 3) {
+            if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        }
+        return dateStr;
+    };
+
+    // 1. LOGIKA AUTO-FILL SPPK (Membaca Tanggal Surat Masuk)
+    // Akan terpicu otomatis ketika admin memilih/mengganti "Nama Debitur"
+    if (e.target.name === 'namaDebitur' || e.target.name === 'debiturSPPK') {
+        const form = e.target.closest('form');
+        if(form) {
+            // Cari data Surat Masuk (D1) berdasarkan nama debitur yang dipilih
+            const smData = storeData['surat-masuk'].find(d => d.jenisSurat === 'D1' && d.pengirim === e.target.value);
+            if (smData && smData.tanggal) {
+                const inputTglSPPK = form.querySelector('input[name="tanggalSPPK"]');
+                // Jika input tanggal ditemukan, isi otomatis!
+                if (inputTglSPPK) inputTglSPPK.value = formatToDateInput(smData.tanggal);
+            }
+        }
+    }
+
+    // 2. LOGIKA AUTO-FILL PK (Membaca Tanggal SPPK)
+    // Akan terpicu otomatis ketika admin memilih/mengganti "Nomor SPPK"
+    if (e.target.name === 'nomorSPPK' || e.target.name === 'sppkInduk') {
+        const form = e.target.closest('form');
+        if(form) {
+            // Cari data SPPK berdasarkan Nomor SPPK yang dipilih
+            const sppkData = storeData['sppk'].find(d => d.nomorSPPK === e.target.value);
+            if (sppkData && sppkData.tanggal) {
+                const inputTglPK = form.querySelector('input[name="tanggalPK"]');
+                // Jika input tanggal ditemukan, isi otomatis!
+                if (inputTglPK) inputTglPK.value = formatToDateInput(sppkData.tanggal);
+            }
+        }
+    }
+});
