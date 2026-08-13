@@ -286,45 +286,59 @@ async function loadDataTabel(jenis) {
     }
 }
 
-function applyFilter(jenis, page = 1) {
-    let targetDataJenis = jenis === 'disposisi' ? 'surat-masuk' : jenis; 
-    if(!storeData[targetDataJenis]) return;
-    let data = [...storeData[targetDataJenis]]; const tbody = document.getElementById(`tbody-${jenis}`); if(!tbody) return;
-    currentPage[jenis] = page;
+// ========================================================
+// --- OMNISEARCH PINTAR (ANTI-ERROR VERSI 2) ---
+// ========================================================
+function applyFilter(jenis) {
+    try {
+        let targetData = jenis === 'disposisi' ? 'surat-masuk' : jenis;
+        let data = storeData[targetData] || [];
 
-    if(['surat-masuk','surat-keluar','sppk','pk','arsip', 'disposisi'].includes(jenis)) {
-        const searchVal = document.getElementById(`search-${jenis}`) ? document.getElementById(`search-${jenis}`).value.toLowerCase() : '';
-        const sortVal = document.getElementById(`sort-${jenis}`) ? document.getElementById(`sort-${jenis}`).value : 'newest';
-        const cabVal = document.getElementById(`fil-cabang-${jenis}`) ? document.getElementById(`fil-cabang-${jenis}`).value : '';
-        const thnVal = document.getElementById(`fil-tahun-${jenis}`) ? document.getElementById(`fil-tahun-${jenis}`).value : '';
-        const blnVal = document.getElementById(`fil-bulan-${jenis}`) ? document.getElementById(`fil-bulan-${jenis}`).value : '';
-        const jnsVal = document.getElementById(`fil-jenis-surat-${jenis}`) ? document.getElementById(`fil-jenis-surat-${jenis}`).value : '';
-        const katVal = document.getElementById(`fil-kategori-arsip`) ? document.getElementById(`fil-kategori-arsip`).value : '';
+        const viewSection = document.getElementById(`view-${jenis}`);
+        if (!viewSection) return;
 
-        data = data.filter(item => {
-            let mTxt = true, mCb = true, mThn = true, mBln = true, mJns = true, mKat = true, mKategori = true;
-            let target = (item.nomor||item.nomorSPPK||item.nomorPK||'') + " " + (item.pengirim||item.tujuan||item.debitur||item.deskripsi||'');
-            if(searchVal) mTxt = target.toLowerCase().includes(searchVal);
-            if(cabVal && item.cabang && jenis !== 'disposisi') mCb = item.cabang.includes(cabVal) || item.cabang === cabVal;
-            if(jnsVal && item.jenisSurat && jenis !== 'disposisi') mJns = item.jenisSurat === jnsVal;
-            if(katVal && item.kategori && jenis !== 'disposisi') mKat = item.kategori === katVal;
-            if(item.tanggal && jenis !== 'disposisi') { const d = new Date(item.tanggal); if(thnVal) mThn = d.getFullYear().toString() === thnVal; if(blnVal) mBln = ("0"+(d.getMonth()+1)).slice(-2) === blnVal; }
+        // Gunakan pencarian elemen yang lebih kebal
+        const searchInput = viewSection.querySelector('.search-input');
+        const selectInputs = viewSection.querySelectorAll('select.search-input');
+        
+        const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const keywordsArray = keyword.split(' ').filter(k => k !== '');
 
-            if(jenis === 'disposisi') {
-                mKategori = item.jenisSurat !== 'D1';
-                if(currentUser && currentUser.role === 'Staf') { mKategori = mKategori && item.disposisiKe === currentUser.nama; }
+        let filteredData = data.filter(item => {
+            if (!item) return false; // Mencegah baris kosong membuat error
+            
+            // Konversi aman semua teks (Cegah null error)
+            const allText = Object.values(item).map(val => String(val || '').toLowerCase()).join(' ');
+
+            let isMatchKeyword = true;
+            if (keywordsArray.length > 0) {
+                isMatchKeyword = keywordsArray.every(kw => allText.includes(kw));
             }
-            return mTxt && mCb && mThn && mBln && mJns && mKat && mKategori;
+
+            let isMatchDropdowns = true;
+            selectInputs.forEach(select => {
+                if (select.value && select.value !== '') {
+                    if (!allText.includes(select.value.toLowerCase())) {
+                        isMatchDropdowns = false;
+                    }
+                }
+            });
+
+            let isDisposisiValid = true;
+            if (jenis === 'disposisi') {
+                isDisposisiValid = item.status && (item.status.includes('Disposisi') || item.status.includes('Selesai'));
+            }
+
+            return isMatchKeyword && isMatchDropdowns && isDisposisiValid;
         });
 
-        data.sort((a, b) => { let da = new Date(a.tanggal), db = new Date(b.tanggal); if(sortVal === 'newest') return db - da; if(sortVal === 'oldest') return da - db; });
+        const tbody = document.getElementById(`tbody-${jenis}`);
+        if (tbody) {
+            renderHTMLTabel(jenis, filteredData, tbody);
+        }
+    } catch (error) {
+        console.error("Filter Error: ", error);
     }
-
-    const rowsPerPage = 10;
-    const startIndex = (page - 1) * rowsPerPage;
-    const paginatedData = data.slice(startIndex, startIndex + rowsPerPage);
-    renderHTMLTabel(jenis, paginatedData, tbody);
-    if(['surat-masuk','surat-keluar','sppk','pk','arsip','disposisi'].includes(jenis)) { renderPagination(jenis, data.length, page, rowsPerPage); }
 }
 
 function renderPagination(jenis, totalItems, page, rowsPerPage) {
