@@ -306,7 +306,27 @@ function buildFilterUI(jenis) {
 }
 
 function populateJenisSuratFilters() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getJenisSurat' }) }).then(res => res.json()).then(result => { if(result.status === 'success') { let options = '<option value="">Semua Jenis Surat</option>'; result.data.forEach(j => options += `<option value="${j.kode}">${j.kode} - ${j.nama}</option>`); document.querySelectorAll('.sel-jenissurat-filter').forEach(el => { el.innerHTML = options; }); } }); }
-function populateCabangFilters() { let options = '<option value="">Semua Cabang</option>'; storeData['cabang'].forEach(c => options += `<option value="${c.kodeSM}">${c.nama}</option>`); document.querySelectorAll('.sel-cabang-filter').forEach(el => { el.innerHTML = options; }); }
+// ========================================================
+// --- PERBAIKAN DISTRIBUSI DROPDOWN CABANG ---
+// ========================================================
+function populateCabangFilters() {
+    const dataCabang = storeData['cabang'] || [];
+    
+    // 1. Distribusi ke Dropdown Filter Pencarian di Tabel
+    let opsFilter = '<option value="">🏢 Semua Cabang</option>';
+    dataCabang.forEach(c => {
+        opsFilter += `<option value="${c.nama}">${c.nama}</option>`;
+    });
+    document.querySelectorAll('.sel-cabang-filter').forEach(el => el.innerHTML = opsFilter);
+
+    // 2. Distribusi ke Form Input (Tambah SPPK, Tambah PK, dll)
+    let opsForm = '<option value="">Pilih Cabang...</option>';
+    dataCabang.forEach(c => {
+        // Mempertahankan format value khusus sistem Anda: kodeSM|kodePK
+        opsForm += `<option value="${c.kodeSM}|${c.kodePK}">${c.nama}</option>`;
+    });
+    document.querySelectorAll('.sel-cabang-global').forEach(el => el.innerHTML = opsForm);
+}
 
 async function loadDataTabel(jenis) {
     const tbody = document.getElementById(`tbody-${jenis}`); if(!tbody) return;
