@@ -328,10 +328,13 @@ function populateCabangFilters() {
     document.querySelectorAll('.sel-cabang-global').forEach(el => el.innerHTML = opsForm);
 }
 
+// ========================================================
+// --- MESIN PENARIK DATA UTAMA (TABEL & SKELETON) ---
+// ========================================================
 async function loadDataTabel(jenis) {
     const tbody = document.getElementById(`tbody-${jenis}`); if(!tbody) return;
     
-    // TAMPILAN SKELETON LOADING (Menggantikan tulisan "Menarik data...")
+    // Animasi Skeleton Loading
     let skeletonHtml = '';
     for(let i=0; i<4; i++) {
         skeletonHtml += `
@@ -354,12 +357,18 @@ async function loadDataTabel(jenis) {
     try {
         const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: act }) });
         const result = await response.json();
+        
         if (result.status === 'success') {
             if(['surat-masuk','surat-keluar','sppk','pk','arsip','cabang','disposisi'].includes(jenis)) {
                 let targetData = jenis === 'disposisi' ? 'surat-masuk' : jenis;
                 storeData[targetData] = result.data;
+                
                 if(jenis === 'cabang') populateCabangFilters();
-                if(jenis === 'pk') populatePKForm();
+                
+                // KUNCI ANTI-DUPLIKAT (SMART EXCLUSION):
+                // Panggil ini agar dropdown input selalu ter-update secara real-time!
+                refreshDropdownTransaksi(); 
+                
                 applyFilter(jenis); 
             } else { renderHTMLTabel(jenis, result.data, tbody); }
         } else {
@@ -367,6 +376,61 @@ async function loadDataTabel(jenis) {
         }
     } catch (error) { 
         tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding:20px;">Gagal terhubung ke server.</td></tr>`; 
+    }
+}
+
+// ========================================================
+// --- PENCEGAH DUPLIKASI INPUT (SMART EXCLUSION DROPDOWN) ---
+// ========================================================
+function refreshDropdownTransaksi() {
+    try {
+        // 1. FILTER SUMBER D1 (Cegah Surat Masuk D1 yang sudah terbit SPPK)
+        const selectD1 = document.getElementById('sppk-sumber-d1');
+        if (selectD1 && storeData['surat-masuk']) {
+            // Ambil semua nama debitur yang SUDAH terdaftar secara sah di tabel SPPK
+            const debiturSudahSPPK = (storeData['sppk'] || []).map(s => String(s.debitur).toLowerCase().trim());
+            
+            const d1Tersedia = storeData['surat-masuk'].filter(sm => {
+                if (!sm) return false;
+                const namaSM = String(sm.pengirim).toLowerCase().trim();
+                const isBelumDiproses = sm.status !== 'Selesai Diproses'; // Cek Status
+                const isBelumAdaDiSPPK = !debiturSudahSPPK.includes(namaSM); // Pengecekan Fisik Ekstra
+                
+                // Hanya loloskan jika: Jenis D1 AND Belum Diproses AND Belum punya SPPK
+                return sm.jenisSurat === 'D1' && isBelumDiproses && isBelumAdaDiSPPK;
+            });
+            
+            let htmlD1 = '<option value="">-- Manual / Pilih Sumber (D1) --</option>';
+            d1Tersedia.forEach(sm => {
+                htmlD1 += `<option value="${sm.pengirim}">${sm.nomor} - ${sm.pengirim}</option>`;
+            });
+            selectD1.innerHTML = htmlD1;
+        }
+
+        // 2. FILTER SPPK INDUK (Cegah SPPK yang sudah jadi Kontrak PK)
+        const selectSPPK = document.getElementById('select-sppk-induk');
+        if (selectSPPK && storeData['sppk']) {
+            // Ambil semua nomor SPPK Induk yang SUDAH memiliki kontrak PK aktif
+            const sppkSudahPK = (storeData['pk'] || []).map(p => String(p.sppkInduk).trim());
+            
+            const sppkTersedia = storeData['sppk'].filter(sppk => {
+                if (!sppk) return false;
+                const noSPPK = String(sppk.nomorSPPK).trim();
+                const isBelumPK = sppk.status !== 'Sudah PK'; // Cek Status
+                const isBelumAdaDiPK = !sppkSudahPK.includes(noSPPK); // Pengecekan Fisik Ekstra
+                
+                // Hanya loloskan jika: Belum PK AND Nomornya tidak ditemukan di Tabel PK
+                return isBelumPK && isBelumAdaDiPK;
+            });
+            
+            let htmlSPPK = '<option value="">Pilih SPPK...</option>';
+            sppkTersedia.forEach(sppk => {
+                htmlSPPK += `<option value="${sppk.nomorSPPK}">${sppk.nomorSPPK} - ${sppk.debitur}</option>`;
+            });
+            selectSPPK.innerHTML = htmlSPPK;
+        }
+    } catch (error) {
+        console.error("Gagal menyaring Dropdown Anti-Duplikat: ", error);
     }
 }
 
