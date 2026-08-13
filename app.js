@@ -1,3 +1,67 @@
+// ========================================================
+// --- MESIN PRE-LOADER DATABASE (SPLASH SCREEN) ---
+// ========================================================
+async function prefetchAllDatabase() {
+    const loader = document.getElementById('global-loader');
+    const progress = document.getElementById('loader-progress');
+    const text = document.getElementById('loader-text');
+
+    if (!loader) return;
+    
+    // Tampilkan Layar Kunci
+    loader.style.display = 'flex';
+    loader.style.opacity = '1';
+    
+    try {
+        // Tahap 1: Persiapan Parameter Dasar
+        if(text) text.innerText = 'Mengunduh referensi cabang & identitas...';
+        if(progress) progress.style.width = '20%';
+        await loadDataTabel('cabang');
+        
+        // Tahap 2: Menarik Data Surat Utama
+        if(text) text.innerText = 'Menarik riwayat Surat Masuk & Keluar...';
+        if(progress) progress.style.width = '55%';
+        await Promise.all([
+            loadDataTabel('surat-masuk'),
+            loadDataTabel('surat-keluar')
+        ]);
+
+        // Tahap 3: Menarik Data Transaksi Kredit
+        if(text) text.innerText = 'Menyinkronkan dokumen SPPK & PK...';
+        if(progress) progress.style.width = '90%';
+        await Promise.all([
+            loadDataTabel('sppk'),
+            loadDataTabel('pk')
+        ]);
+
+        // Tahap Akhir: Selesai
+        if(text) text.innerText = 'Database siap! Membuka aplikasi...';
+        if(progress) {
+            progress.style.width = '100%';
+            progress.style.background = '#34D399'; // Berubah hijau
+        }
+
+        // Jalankan render dashboard agar angka langsung muncul
+        loadDashboardStats();
+
+        // Hilangkan layar loading dengan transisi memudar
+        setTimeout(() => {
+            loader.style.opacity = '0';
+            setTimeout(() => {
+                loader.style.display = 'none';
+            }, 600); // Tunggu animasi pudar selesai
+        }, 800); // Jeda sebentar agar user melihat tulisan sukses
+
+    } catch (error) {
+        if(text) {
+            text.innerText = 'Koneksi terputus! Gagal memuat database.';
+            text.style.color = '#FCA5A5';
+        }
+        if(progress) progress.style.background = '#EF4444';
+        console.error("Gagal Pre-fetch: ", error);
+    }
+}
+
 const API_URL = 'https://script.google.com/macros/s/AKfycbygoan29D_f8a6txaY2R9AeeoFY9ccPPszzVcNDAfccMcO05D4621E8fwPL-NWxDZnVfA/exec';
 
 let currentUser = null; 
@@ -711,28 +775,42 @@ async function handleLogin(e) {
                     document.getElementById('user-name').innerText = currentUser.username; 
                     document.getElementById('user-role').innerText = currentUser.role; 
                     
-                    // Filter tampilan berdasarkan Role yang ditarik dari Database
+                    // Filter tampilan berdasarkan Role
                     if(currentUser.role !== 'Admin') document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
                     else document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
 
+                    // 1. TUTUP LAYAR LOGIN & BUKA LAYAR UTAMA
                     document.getElementById('login-screen').classList.add('hidden'); 
                     document.getElementById('main-screen').classList.remove('hidden'); 
-                    loadDashboardStats();
-                    showAlert('Otentikasi Berhasil', `Selamat datang kembali, ${currentUser.nama}!`, 'success');
                     
-                    // Tarik sisa data master
-                    fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getCabang' }) }).then(r => r.json()).then(resC => { if(resC.status === 'success') { storeData['cabang'] = resC.data; let ops = '<option value="">Pilih Cabang...</option>'; resC.data.forEach(j => ops += `<option value="${j.kodeSM}|${j.kodePK}">${j.nama}</option>`); document.querySelectorAll('.sel-cabang-global').forEach(el => el.innerHTML = ops); } });
-                    fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getJenisSurat' }) }).then(r => r.json()).then(resJ => { if(resJ.status === 'success') { let ops = '<option value="">Pilih Jenis Surat...</option>'; resJ.data.forEach(j => ops += `<option value="${j.kode}">${j.kode} - ${j.nama}</option>`); if(document.getElementById('select-jenis-sm')) document.getElementById('select-jenis-sm').innerHTML = ops; if(document.getElementById('select-jenis-sk')) document.getElementById('select-jenis-sk').innerHTML = ops; } });
+                    // 2. JALANKAN MESIN SPLASH SCREEN!
+                    // Mesin ini akan menutupi layar utama sementara waktu untuk menarik semua data
+                    prefetchAllDatabase();
+                    
+                    // 3. Tampilkan notifikasi elegan
+                    showToast('Otentikasi Berhasil', `Selamat datang kembali, ${currentUser.nama}!`, 'success');
+                    
+                    // Tarik data referensi Jenis Surat di latar belakang (Data Cabang sudah dihandle Splash Screen)
+                    fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getJenisSurat' }) })
+                        .then(r => r.json())
+                        .then(resJ => { 
+                            if(resJ.status === 'success') { 
+                                let ops = '<option value="">Pilih Jenis Surat...</option>'; 
+                                resJ.data.forEach(j => ops += `<option value="${j.kode}">${j.kode} - ${j.nama}</option>`); 
+                                if(document.getElementById('select-jenis-sm')) document.getElementById('select-jenis-sm').innerHTML = ops; 
+                                if(document.getElementById('select-jenis-sk')) document.getElementById('select-jenis-sk').innerHTML = ops; 
+                            } 
+                        });
 
                 } else {
-                    showAlert('Akses Ditolak', 'Password yang Anda masukkan salah.', 'error');
+                    showToast('Akses Ditolak', 'Password yang Anda masukkan salah.', 'error');
                 }
             } else {
-                showAlert('Akses Ditolak', 'Username tidak terdaftar di sistem.', 'error');
+                showToast('Akses Ditolak', 'Username tidak terdaftar di sistem.', 'error');
             }
         }
     } catch (error) {
-        showAlert('Koneksi Gagal', 'Tidak dapat menghubungi server verifikasi.', 'error');
+        showToast('Koneksi Gagal', 'Tidak dapat menghubungi server verifikasi.', 'error');
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
