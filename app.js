@@ -441,8 +441,7 @@ function refreshDropdownTransaksi() {
 // --- OMNISEARCH PINTAR & MESIN PAGINASI (10 DATA/HALAMAN) ---
 // ========================================================
 
-// 1. Variabel Penyimpan Status Halaman
-let currentPage = {};
+
 
 // 2. Fungsi Pemicu Pindah Halaman
 function changePage(jenis, action) {
