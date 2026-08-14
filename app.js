@@ -331,6 +331,9 @@ function populateCabangFilters() {
 // ========================================================
 // --- MESIN PENARIK DATA UTAMA (TABEL & SKELETON) ---
 // ========================================================
+// ========================================================
+// --- MESIN PENARIK DATA UTAMA (TABEL & SKELETON) ---
+// ========================================================
 async function loadDataTabel(jenis) {
     const tbody = document.getElementById(`tbody-${jenis}`); if(!tbody) return;
     
@@ -351,26 +354,39 @@ async function loadDataTabel(jenis) {
     }
     tbody.innerHTML = skeletonHtml;
 
+    // 1. PERBAIKAN: Menambahkan 'arsip-kredit' ke dalam daftar Action
     let act = '';
-    if (jenis === 'surat-masuk' || jenis === 'disposisi') act = 'getSuratMasuk'; else if (jenis === 'surat-keluar') act = 'getSuratKeluar'; else if (jenis === 'sppk') act = 'getSPPK'; else if (jenis === 'pk') act = 'getPK'; else if (jenis === 'arsip') act = 'getArsip'; else if (jenis === 'jenis-surat') act = 'getJenisSurat'; else if (jenis === 'user') act = 'getUser'; else if (jenis === 'referensi-pk') act = 'getReferensiPK'; else if (jenis === 'cabang') act = 'getCabang';
+    if (jenis === 'surat-masuk' || jenis === 'disposisi') act = 'getSuratMasuk'; 
+    else if (jenis === 'surat-keluar') act = 'getSuratKeluar'; 
+    else if (jenis === 'sppk') act = 'getSPPK'; 
+    else if (jenis === 'pk') act = 'getPK'; 
+    else if (jenis === 'arsip') act = 'getArsip'; 
+    else if (jenis === 'jenis-surat') act = 'getJenisSurat'; 
+    else if (jenis === 'user') act = 'getUser'; 
+    else if (jenis === 'referensi-pk') act = 'getReferensiPK'; 
+    else if (jenis === 'cabang') act = 'getCabang';
+    else if (jenis === 'arsip-kredit') act = 'getArsipKredit'; // <-- Kata sandi baru untuk backend
 
     try {
         const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: act }) });
         const result = await response.json();
         
         if (result.status === 'success') {
-            if(['surat-masuk','surat-keluar','sppk','pk','arsip','cabang','disposisi'].includes(jenis)) {
+            
+            // 2. PERBAIKAN: Memasukkan 'arsip-kredit' ke dalam antrean Omnisearch
+            if(['surat-masuk','surat-keluar','sppk','pk','arsip','cabang','disposisi','arsip-kredit'].includes(jenis)) {
+                
                 let targetData = jenis === 'disposisi' ? 'surat-masuk' : jenis;
-                storeData[targetData] = result.data;
+                storeData[targetData] = result.data; // Simpan data ke memori browser
                 
                 if(jenis === 'cabang') populateCabangFilters();
                 
-                // KUNCI ANTI-DUPLIKAT (SMART EXCLUSION):
-                // Panggil ini agar dropdown input selalu ter-update secara real-time!
                 refreshDropdownTransaksi(); 
                 
-                applyFilter(jenis); 
-            } else { renderHTMLTabel(jenis, result.data, tbody); }
+                applyFilter(jenis); // Tampilkan ke layar menggunakan filter
+            } else { 
+                renderHTMLTabel(jenis, result.data, tbody); 
+            }
         } else {
             tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding:20px;">Gagal: ${result.message}</td></tr>`;
         }
