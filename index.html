@@ -492,6 +492,9 @@
                 <!-- ========================================================
          MODUL DATABASE ARSIP KREDIT (E-ARSIP DAKOPEN)
          ======================================================== -->
+   <!-- ========================================================
+         MODUL DATABASE ARSIP KREDIT (E-ARSIP DAKOPEN)
+         ======================================================== -->
     <div id="view-arsip-kredit" class="view-section hidden">
         <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <div>
@@ -505,7 +508,7 @@
 
         <!-- OMNISEARCH ARSIP -->
         <div class="filter-container" style="margin-bottom: 20px;">
-            <input type="text" id="search-arsip-kredit" class="search-input" placeholder="🔍 Cari Nama, Loan ID, atau No. PK..." onkeyup="applyFilter('arsip-kredit')">
+            <input type="text" id="search-arsip-kredit" class="search-input" placeholder="🔍 Cari No. Urut, Nama, Loan ID, atau PK..." onkeyup="applyFilter('arsip-kredit')">
             <select id="fil-cabang-arsip-kredit" class="search-input sel-cabang-filter" onchange="applyFilter('arsip-kredit')">
                 <option value="">🏢 Semua Cabang</option>
             </select>
@@ -521,6 +524,7 @@
             <table class="modern-table">
                 <thead>
                     <tr>
+                        <th style="width: 100px;">No. Urut</th>
                         <th>Loan ID</th>
                         <th>Nama Debitur</th>
                         <th class="pc-only">No. PK</th>
@@ -535,7 +539,7 @@
             </table>
             <div id="pagination-arsip-kredit"></div>
         </div>
-    </section>
+    </div>
 
     <!-- ========================================================
          MODAL UPLOAD GLASSMORPHISM (KHUSUS ARSIP)
@@ -543,13 +547,13 @@
     <div id="modal-upload-arsip" class="modal-overlay hidden">
         <div class="modal-card modal-form" style="max-width: 500px !important;">
             <h3 style="margin-bottom: 5px;"><i class="fa-solid fa-database text-primary"></i> Sinkronisasi Harian</h3>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px;">Unggah file <b>.CSV</b> dari e-Arsip DaKOPen. Aksi ini akan menimpa database lama.</p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px;">Unggah file <b>.XLSX / .XLS</b> dari e-Arsip DaKOPen. Aksi ini akan menimpa database lama.</p>
             
             <div class="upload-glass-zone" style="background: var(--bg-card); border: 2px dashed var(--primary); border-radius: 16px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.3s ease;" onclick="document.getElementById('arsip-file-input').click()">
-                <i class="fa-solid fa-file-csv" style="font-size: 3rem; color: var(--primary); margin-bottom: 15px;"></i>
-                <h4 style="margin: 0; color: var(--text-main);">Klik untuk Memilih File CSV</h4>
+                <i class="fa-solid fa-file-excel" style="font-size: 3rem; color: var(--primary); margin-bottom: 15px;"></i>
+                <h4 style="margin: 0; color: var(--text-main);">Klik untuk Memilih File Excel</h4>
                 <p id="arsip-file-name" style="margin: 5px 0 0; font-size: 0.85rem; color: var(--text-secondary);">Maksimal 10MB</p>
-                <input type="file" id="arsip-file-input" accept=".csv" style="display: none;" onchange="handleArsipFileSelect(event)">
+                <input type="file" id="arsip-file-input" accept=".xlsx, .xls" style="display: none;" onchange="handleArsipFileSelect(event)">
             </div>
 
             <div class="modal-footer" style="margin-top: 25px;">
