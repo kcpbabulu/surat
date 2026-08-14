@@ -655,6 +655,25 @@ function renderHTMLTabel(jenis, dataArray, tbody) {
             else { aksiBtn = `<button class="btn-icon text-info" title="Tandai Selesai" onclick="deleteData('selesaikanTugas', '${item.id}', 'disposisi')"><i class="fa-solid fa-check"></i></button>`; }
             html += `<tr><td><strong>${item.nomor}</strong></td><td>${item.tanggal}</td><td>${item.pengirim}</td><td>${item.perihal}<br><small class="text-warning">Pesan: ${item.pesanDisposisi || '-'}</small></td><td>${statusBadge}<br><small>Staf: <strong>${item.disposisiKe || '-'}</strong></small></td><td>${viewBtn} ${fileBtn} ${aksiBtn}</td></tr>`;
         }
+        
+        // ==========================================
+        // PENAMBAHAN BARU: RENDER TABEL ARSIP KREDIT
+        // ==========================================
+        else if (jenis === 'arsip-kredit') {
+            let baki = item.bakiDebet ? parseFloat(item.bakiDebet).toLocaleString('id-ID') : '0';
+            let stat = (item.status || "").toUpperCase();
+            let bBadge = stat === 'AKTIF' ? 'badge-success' : (stat === 'LUNAS' ? 'badge-primary' : 'badge-secondary');
+            
+            html += `<tr>
+                <td style="font-weight: 900; color: var(--primary); font-size: 1.1rem;"><i class="fa-solid fa-folder-open" style="margin-right: 5px; opacity: 0.5;"></i> ${item.noUrut || '-'}</td>
+                <td><span class="badge badge-outline">${item.loanId || '-'}</span></td>
+                <td style="font-weight: 800;">${item.namaDebitur || '-'}</td>
+                <td class="pc-only">${item.noPK || '-'}</td>
+                <td class="pc-only">${item.jenisKredit || '-'}</td>
+                <td><span class="badge ${bBadge}">${stat || '-'}</span></td>
+                <td style="text-align: right; font-weight: bold; color: var(--text-main);">Rp ${baki}</td>
+            </tr>`;
+        }
     });
     tbody.innerHTML = html;
 }
@@ -1214,35 +1233,50 @@ function copyFormatWA() {
 }
 
 // ========================================================
-// --- MESIN SINKRONISASI DATABASE ARSIP (FRONTEND) ---
+// --- MESIN SINKRONISASI DATABASE ARSIP (SHEET-JS ENGINE) ---
 // ========================================================
-let arsipBase64Data = null;
+let arsipParsedData = null;
 
 function handleArsipFileSelect(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Validasi format
-    if (file.name.split('.').pop().toLowerCase() !== 'csv') {
-        showToast('Format Salah', 'Harap unggah file berformat CSV.', 'error');
+    const fileExt = file.name.split('.').pop().toLowerCase();
+    if (fileExt !== 'xlsx' && fileExt !== 'xls') {
+        showToast('Format Salah', 'Harap unggah file berformat Excel (.xlsx / .xls).', 'error');
         event.target.value = '';
         return;
     }
 
-    document.getElementById('arsip-file-name').innerHTML = `<span style="color: var(--primary); font-weight: bold;">${file.name}</span> siap diproses.`;
-    document.getElementById('btn-proses-arsip').disabled = false;
+    document.getElementById('arsip-file-name').innerHTML = `<span style="color: var(--primary); font-weight: bold;">${file.name}</span> sedang diproses...`;
+    document.getElementById('btn-proses-arsip').disabled = true;
 
-    // Konversi file ke Base64
+    // Baca file fisik menggunakan FileReader & SheetJS
     const reader = new FileReader();
     reader.onload = function(e) {
-        // Hapus prefix "data:text/csv;base64," agar mesin backend mudah membaca
-        arsipBase64Data = e.target.result.split(',')[1]; 
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            
+            // Ambil sheet pertama dari file Excel tersebut
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            // Konversi langsung menjadi array 2 Dimensi (Baris & Kolom)
+            arsipParsedData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+            
+            document.getElementById('arsip-file-name').innerHTML = `<span style="color: var(--success); font-weight: bold;">${file.name}</span> siap disinkronisasi! (${arsipParsedData.length - 1} Data)`;
+            document.getElementById('btn-proses-arsip').disabled = false;
+        } catch (err) {
+            showToast('Gagal Membaca File', 'Pastikan file Excel tidak rusak atau diproteksi password.', 'error');
+            console.error(err);
+        }
     };
-    reader.readAsDataURL(file);
+    reader.readAsArrayBuffer(file);
 }
 
 async function prosesUploadArsip() {
-    if (!arsipBase64Data) return;
+    if (!arsipParsedData) return;
 
     const btn = document.getElementById('btn-proses-arsip');
     const originalText = btn.innerHTML;
@@ -1250,28 +1284,23 @@ async function prosesUploadArsip() {
     btn.disabled = true;
 
     try {
+        // Kirim Array Data yang sudah rapi langsung ke server Google
         const payload = {
             action: 'uploadDatabaseArsip',
-            fileData: arsipBase64Data
+            parsedData: arsipParsedData 
         };
 
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
-        
+        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
         const result = await response.json();
 
         if (result.status === 'success') {
             closeModal('modal-upload-arsip');
-            showToast('Sukses', 'Database Arsip berhasil diperbarui secara sistem.', 'success');
+            showToast('Sukses', 'Database Arsip berhasil diperbarui.', 'success');
             
-            // Reset input form
             document.getElementById('arsip-file-input').value = '';
             document.getElementById('arsip-file-name').innerText = 'Maksimal 10MB';
-            arsipBase64Data = null;
+            arsipParsedData = null;
 
-            // Panggil ulang mesin penarik data (agar layar langsung ter-update)
             loadDataTabel('arsip-kredit');
         } else {
             showToast('Gagal', result.message, 'error');
