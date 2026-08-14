@@ -1284,13 +1284,15 @@ async function prosesUploadArsip() {
     btn.disabled = true;
 
     try {
-        // Kirim Array Data yang sudah rapi langsung ke server Google
-        const payload = {
+        // PERBAIKAN: Menyesuaikan struktur paket pengiriman (Payload)
+        const requestData = {
             action: 'uploadDatabaseArsip',
-            parsedData: arsipParsedData 
+            payload: {
+                fileData: arsipParsedData 
+            }
         };
 
-        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(requestData) });
         const result = await response.json();
 
         if (result.status === 'success') {
