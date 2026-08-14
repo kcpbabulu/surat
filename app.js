@@ -1213,6 +1213,78 @@ function copyFormatWA() {
     });
 }
 
+// ========================================================
+// --- MESIN SINKRONISASI DATABASE ARSIP (FRONTEND) ---
+// ========================================================
+let arsipBase64Data = null;
+
+function handleArsipFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validasi format
+    if (file.name.split('.').pop().toLowerCase() !== 'csv') {
+        showToast('Format Salah', 'Harap unggah file berformat CSV.', 'error');
+        event.target.value = '';
+        return;
+    }
+
+    document.getElementById('arsip-file-name').innerHTML = `<span style="color: var(--primary); font-weight: bold;">${file.name}</span> siap diproses.`;
+    document.getElementById('btn-proses-arsip').disabled = false;
+
+    // Konversi file ke Base64
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        // Hapus prefix "data:text/csv;base64," agar mesin backend mudah membaca
+        arsipBase64Data = e.target.result.split(',')[1]; 
+    };
+    reader.readAsDataURL(file);
+}
+
+async function prosesUploadArsip() {
+    if (!arsipBase64Data) return;
+
+    const btn = document.getElementById('btn-proses-arsip');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengeksekusi Overwrite...';
+    btn.disabled = true;
+
+    try {
+        const payload = {
+            action: 'uploadDatabaseArsip',
+            fileData: arsipBase64Data
+        };
+
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            closeModal('modal-upload-arsip');
+            showToast('Sukses', 'Database Arsip berhasil diperbarui secara sistem.', 'success');
+            
+            // Reset input form
+            document.getElementById('arsip-file-input').value = '';
+            document.getElementById('arsip-file-name').innerText = 'Maksimal 10MB';
+            arsipBase64Data = null;
+
+            // Panggil ulang mesin penarik data (agar layar langsung ter-update)
+            loadDataTabel('arsip-kredit');
+        } else {
+            showToast('Gagal', result.message, 'error');
+        }
+    } catch (error) {
+        showToast('Error Jaringan', 'Gagal menghubungi server database.', 'error');
+    } finally {
+        btn.innerHTML = originalText;
+    }
+}
+
+
+
 // 5. Aksi: Mesin Pembuat PDF (Print Window Native)
 function cetakLaporanPDF() {
     const data = getFilteredLaporanData();
