@@ -15,23 +15,32 @@ async function prefetchAllDatabase() {
     try {
         // Tahap 1: Persiapan Parameter Dasar
         if(text) text.innerText = 'Mengunduh referensi cabang & identitas...';
-        if(progress) progress.style.width = '20%';
+        if(progress) progress.style.width = '15%';
         await loadDataTabel('cabang');
         
         // Tahap 2: Menarik Data Surat Utama
-        if(text) text.innerText = 'Menarik riwayat Surat Masuk & Keluar...';
-        if(progress) progress.style.width = '55%';
+        if(text) text.innerText = 'Menarik riwayat Surat Masuk, Keluar & Disposisi...';
+        if(progress) progress.style.width = '45%';
         await Promise.all([
             loadDataTabel('surat-masuk'),
-            loadDataTabel('surat-keluar')
+            loadDataTabel('surat-keluar'),
+            loadDataTabel('disposisi')
         ]);
 
         // Tahap 3: Menarik Data Transaksi Kredit
         if(text) text.innerText = 'Menyinkronkan dokumen SPPK & PK...';
-        if(progress) progress.style.width = '90%';
+        if(progress) progress.style.width = '70%';
         await Promise.all([
             loadDataTabel('sppk'),
             loadDataTabel('pk')
+        ]);
+
+        // Tahap 4: Menarik Database Arsip (PENAMBAHAN BARU)
+        if(text) text.innerText = 'Memuat Database Arsip DAKOPEN...';
+        if(progress) progress.style.width = '90%';
+        await Promise.all([
+            loadDataTabel('arsip'),
+            loadDataTabel('arsip-kredit')
         ]);
 
         // Tahap Akhir: Selesai
@@ -50,7 +59,7 @@ async function prefetchAllDatabase() {
             setTimeout(() => {
                 loader.style.display = 'none';
             }, 600); // Tunggu animasi pudar selesai
-        }, 800); // Jeda sebentar agar user melihat tulisan sukses
+        }, 800); 
 
     } catch (error) {
         if(text) {
