@@ -175,16 +175,49 @@ function toggleD1Fields() {
     }
 }
 
+// ========================================================
+// --- MESIN NAVIGASI & ROUTING HALAMAN ---
+// ========================================================
 function navigate(page) {
-    document.getElementById('sidebar').classList.remove('open'); document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active')); event.currentTarget.classList.add('active');
-    ['dashboard', 'surat-masuk', 'surat-keluar', 'disposisi', 'sppk', 'pk', 'arsip', 'laporan', 'pengaturan'].forEach(v => { const el = document.getElementById(`view-${v}`); if(el) el.classList.add('hidden'); });
-    const targetEl = document.getElementById(`view-${page}`); if(targetEl) targetEl.classList.remove('hidden');
-
-    if (page === 'dashboard') loadDashboardStats();
-    else if (page === 'pengaturan') { loadDataTabel('cabang'); loadDataTabel('referensi-pk'); loadDataTabel('jenis-surat'); loadDataTabel('user'); loadConfig(); }
-    else if (['surat-masuk', 'surat-keluar', 'disposisi', 'sppk', 'pk', 'arsip'].includes(page)) { buildFilterUI(page); loadDataTabel(page); }
+    document.getElementById('sidebar').classList.remove('open'); 
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active')); 
+    event.currentTarget.classList.add('active');
     
-    const titles = { 'dashboard': 'Dashboard', 'surat-masuk': 'Surat Masuk', 'surat-keluar': 'Surat Keluar', 'disposisi': 'Disposisi Tugas', 'sppk': 'Data SPPK', 'pk': 'Data PK', 'arsip': 'Arsip Dokumen', 'laporan': 'Pusat Laporan', 'pengaturan': 'Pengaturan Sistem' }; document.getElementById('page-title').innerText = titles[page] || 'Aplikasi';
+    // PERBAIKAN 1: Tambahkan 'arsip-kredit' ke daftar penyembunyi layar
+    ['dashboard', 'surat-masuk', 'surat-keluar', 'disposisi', 'sppk', 'pk', 'arsip', 'arsip-kredit', 'laporan', 'pengaturan'].forEach(v => { 
+        const el = document.getElementById(`view-${v}`); 
+        if(el) el.classList.add('hidden'); 
+    });
+    
+    // Tampilkan layar yang dituju
+    const targetEl = document.getElementById(`view-${page}`); 
+    if(targetEl) targetEl.classList.remove('hidden');
+
+    // Pemicu aksi otomatis saat halaman dibuka
+    if (page === 'dashboard') loadDashboardStats();
+    else if (page === 'pengaturan') { 
+        loadDataTabel('cabang'); loadDataTabel('referensi-pk'); loadDataTabel('jenis-surat'); loadDataTabel('user'); loadConfig(); 
+    }
+    // PERBAIKAN 2: Tambahkan 'arsip-kredit' agar filter & tabelnya dipicu
+    else if (['surat-masuk', 'surat-keluar', 'disposisi', 'sppk', 'pk', 'arsip', 'arsip-kredit'].includes(page)) { 
+        buildFilterUI(page); 
+        loadDataTabel(page); 
+    }
+    
+    // PERBAIKAN 3: Registrasi Judul Halaman Atas
+    const titles = { 
+        'dashboard': 'Dashboard', 
+        'surat-masuk': 'Surat Masuk', 
+        'surat-keluar': 'Surat Keluar', 
+        'disposisi': 'Disposisi Tugas', 
+        'sppk': 'Data SPPK', 
+        'pk': 'Data PK', 
+        'arsip': 'Arsip Dokumen', 
+        'arsip-kredit': 'Database Arsip DAKOPEN', // Judul baru!
+        'laporan': 'Pusat Laporan', 
+        'pengaturan': 'Pengaturan Sistem' 
+    }; 
+    document.getElementById('page-title').innerText = titles[page] || 'Aplikasi';
 }
 
 async function loadDashboardStats() {
