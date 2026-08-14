@@ -437,7 +437,26 @@ function refreshDropdownTransaksi() {
 // ========================================================
 // --- OMNISEARCH PINTAR (ANTI-ERROR & SORTING ENGINE) ---
 // ========================================================
-function applyFilter(jenis) {
+// ========================================================
+// --- OMNISEARCH PINTAR & MESIN PAGINASI (10 DATA/HALAMAN) ---
+// ========================================================
+
+// 1. Variabel Penyimpan Status Halaman
+let currentPage = {};
+
+// 2. Fungsi Pemicu Pindah Halaman
+function changePage(jenis, action) {
+    if (!currentPage[jenis]) currentPage[jenis] = 1;
+    if (action === 'prev') currentPage[jenis]--;
+    else if (action === 'next') currentPage[jenis]++;
+    
+    // Panggil filter lagi, tapi JANGAN reset halamannya (false)
+    applyFilter(jenis, false); 
+}
+
+// 3. Mesin Utama Pencarian & Paginasi
+// Perhatikan penambahan "resetPage = true" pada parameter
+function applyFilter(jenis, resetPage = true) {
     try {
         let targetData = jenis === 'disposisi' ? 'surat-masuk' : jenis;
         let data = storeData[targetData] || [];
@@ -445,7 +464,6 @@ function applyFilter(jenis) {
         const viewSection = document.getElementById(`view-${jenis}`);
         if (!viewSection) return;
 
-        // Tarik elemen filter secara spesifik berdasarkan ID HTML Anda
         const searchInput = document.getElementById(`search-${jenis}`);
         const sortInput = document.getElementById(`sort-${jenis}`);
         const cabangInput = document.getElementById(`fil-cabang-${jenis}`);
@@ -454,25 +472,26 @@ function applyFilter(jenis) {
         const jenisSuratInput = document.getElementById(`fil-jenis-surat-${jenis}`);
         const kategoriArsipInput = document.getElementById(`fil-kategori-arsip`);
 
+        // Jika user mengetik pencarian baru, paksa kembali ke Halaman 1
+        if (resetPage) currentPage[jenis] = 1;
+        if (!currentPage[jenis]) currentPage[jenis] = 1;
+
         const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
         const keywordsArray = keyword.split(' ').filter(k => k !== '');
 
-        // 1. FILTERING (Penyaringan)
+        // --- TAHAP 1: FILTERING (OMNI-SEARCH) ---
         let filteredData = data.filter(item => {
             if (!item) return false;
 
-            // Omnisearch Text (Mencari di semua kolom)
             const allText = Object.values(item).map(val => String(val || '').toLowerCase()).join(' ');
             let isMatchKeyword = true;
             if (keywordsArray.length > 0) {
                 isMatchKeyword = keywordsArray.every(kw => allText.includes(kw));
             }
 
-            // Dropdown Cabang
             let isMatchCabang = true;
             if (cabangInput && cabangInput.value) isMatchCabang = item.cabang === cabangInput.value;
 
-            // Dropdown Bulan & Tahun
             let isMatchBulan = true;
             let isMatchTahun = true;
             if (item.tanggal) {
@@ -485,14 +504,12 @@ function applyFilter(jenis) {
                 }
             }
 
-            // Dropdown Jenis / Kategori
             let isMatchJenis = true;
             if (jenisSuratInput && jenisSuratInput.value) isMatchJenis = item.jenisSurat === jenisSuratInput.value;
             if (kategoriArsipInput && kategoriArsipInput.value) {
                 isMatchJenis = (item.kategori === kategoriArsipInput.value || item.jenisSurat === kategoriArsipInput.value || item.jenisKredit === kategoriArsipInput.value);
             }
 
-            // Khusus Disposisi
             let isDisposisiValid = true;
             if (jenis === 'disposisi') {
                 isDisposisiValid = item.status && (item.status.includes('Disposisi') || item.status.includes('Selesai'));
@@ -501,7 +518,7 @@ function applyFilter(jenis) {
             return isMatchKeyword && isMatchCabang && isMatchBulan && isMatchTahun && isMatchJenis && isDisposisiValid;
         });
 
-        // 2. SORTING (Pengurutan Data)
+        // --- TAHAP 2: SORTING (PENGURUTAN) ---
         if (sortInput && sortInput.value) {
             const sortVal = sortInput.value;
             filteredData.sort((a, b) => {
@@ -521,11 +538,61 @@ function applyFilter(jenis) {
             });
         }
 
-        const tbody = document.getElementById(`tbody-${jenis}`);
-        if (tbody) renderHTMLTabel(jenis, filteredData, tbody);
+        // --- TAHAP 3: PAGINASI (MEMOTONG DATA JADI 10) ---
+        const totalItems = filteredData.length;
+        const totalPages = Math.ceil(totalItems / 10) || 1;
         
+        // Mencegah error jika menghapus data di halaman terakhir
+        if (currentPage[jenis] > totalPages) currentPage[jenis] = totalPages;
+
+        const startIndex = (currentPage[jenis] - 1) * 10;
+        const endIndex = startIndex + 10;
+        
+        // Data yang dipotong (Hanya 10 baris)
+        const paginatedData = filteredData.slice(startIndex, endIndex);
+
+        const tbody = document.getElementById(`tbody-${jenis}`);
+        if (tbody) {
+            // Render HANYA 10 baris ke layar
+            renderHTMLTabel(jenis, paginatedData, tbody);
+
+            // --- TAHAP 4: RENDER TOMBOL PAGINASI DI BAWAH TABEL ---
+            let paginationContainer = document.getElementById(`pagination-${jenis}`);
+            if (!paginationContainer) {
+                // Buat kontainer jika belum ada dan letakkan tepat di bawah tabel
+                paginationContainer = document.createElement('div');
+                paginationContainer.id = `pagination-${jenis}`;
+                tbody.parentElement.parentElement.appendChild(paginationContainer);
+            }
+
+            // Bersihkan paginasi jika tidak ada data
+            if (totalItems === 0) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            // Logika Tombol Nyala/Mati (Disabled)
+            let btnPrev = `<button class="btn btn-outline btn-sm" onclick="changePage('${jenis}', 'prev')" ${currentPage[jenis] === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i> Prev</button>`;
+            let btnNext = `<button class="btn btn-outline btn-sm" onclick="changePage('${jenis}', 'next')" ${currentPage[jenis] === totalPages ? 'disabled' : ''}>Next <i class="fa-solid fa-chevron-right"></i></button>`;
+            
+            // Susunan Visual Paginasi (Flexbox responsif untuk HP)
+            paginationContainer.innerHTML = `
+                <div class="pagination-container" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 10px 5px; margin-top: 10px; border-top: 1px dashed var(--border-color); flex-wrap: wrap; gap: 15px;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">
+                        Menampilkan ${startIndex + 1} - ${Math.min(endIndex, totalItems)} dari ${totalItems} data
+                    </span>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        ${btnPrev}
+                        <span style="font-size: 0.85rem; font-weight: 900; background: var(--bg-card); padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                            Hal ${currentPage[jenis]} / ${totalPages}
+                        </span>
+                        ${btnNext}
+                    </div>
+                </div>
+            `;
+        }
     } catch (error) {
-        console.error("Filter Error: ", error);
+        console.error("Filter & Pagination Error: ", error);
     }
 }
 
