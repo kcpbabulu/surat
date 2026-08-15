@@ -212,8 +212,8 @@ function navigate(page) {
         'disposisi': 'Disposisi Tugas', 
         'sppk': 'Data SPPK', 
         'pk': 'Data PK', 
-        'arsip': 'Arsip Dokumen', 
-        'arsip-kredit': 'Database Arsip DAKOPEN', // Judul baru!
+        'arsip': 'Arsip Dokumen Surat Menyurat', 
+        'arsip-kredit': 'E-Arsip Berkas Kredit', // Judul baru!
         'laporan': 'Pusat Laporan', 
         'pengaturan': 'Pengaturan Sistem' 
     }; 
