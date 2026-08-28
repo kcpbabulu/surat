@@ -433,3 +433,73 @@ input[type="text"].search-input { flex: 2; min-width: 220px; cursor: text; }
     .skeleton-tr { display: flex !important; flex-direction: column; gap: 12px; }
     .pc-only { display: none !important; }
 }
+
+/* ========================================================
+   14. OPTIMASI RESOLUSI RENDAH (LOW-RES PC & HP KECIL)
+   ======================================================== */
+
+/* A. Optimasi Laptop Standar / Layar Sempit (Width: 769px - 1100px) */
+@media (min-width: 769px) and (max-width: 1100px) {
+    html { font-size: 13px; }
+    .sidebar { width: 220px; }
+    .topbar { padding: 0 20px; }
+    .content-area { padding: 5px 20px 30px; }
+    
+    .card-body, .card-header { padding: 15px 18px; }
+    .stats-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+    
+    /* Paksa Widget Dashboard menjadi 1 Kolom ke Bawah agar tidak gepeng */
+    .dashboard-widgets { grid-template-columns: 1fr; gap: 15px; }
+    .activity-list li { padding: 12px 15px; }
+}
+
+/* B. Optimasi Layar Pendek / Laptop 1366x768 (Height < 720px) 
+   Sangat penting agar Form Modal tidak terpotong di bawah */
+@media (max-height: 720px) {
+    .modal-card { max-height: 95vh; border-radius: 25px; }
+    .modal-form h3 { padding: 15px 20px; font-size: 1.15rem; }
+    .modal-form form { padding: 15px 20px; }
+    .modal-form .modal-footer { padding: 15px 20px; }
+    
+    .form-grid { margin-bottom: 8px; gap: 12px; }
+    .input-group { margin-bottom: 12px; }
+    .input-group label { margin-bottom: 6px; font-size: 0.75rem; }
+    .input-group input, .input-group select { padding: 10px 14px; border-radius: 12px; }
+    
+    .file-drop-area { height: 90px; border-radius: 14px; }
+    .file-msg i { font-size: 2rem; margin-bottom: 0; }
+    .file-msg { gap: 4px; font-size: 0.85rem; }
+    
+    .topbar { height: 60px; }
+}
+
+/* C. Optimasi HP Berlayar Sangat Kecil (Width < 380px) */
+@media (max-width: 380px) {
+    html { font-size: 12px; }
+    
+    .login-card { padding: 30px 20px; border-radius: 25px; }
+    .login-header h2 { font-size: 1.7rem; }
+    
+    .stat-card { padding: 15px; gap: 15px; }
+    .stat-icon { width: 45px; height: 45px; font-size: 1.2rem; border-radius: 12px; }
+    .stat-details h3 { font-size: 1.8rem; }
+    
+    .modern-table tr { padding: 12px !important; border-radius: 16px !important; }
+    .modern-table td:first-child { font-size: 0.95rem !important; padding-right: 80px !important; }
+    .modern-table td:nth-last-child(2) { top: 12px !important; right: 12px !important; }
+    
+    .badge { padding: 4px 8px; font-size: 0.65rem; }
+    .btn { padding: 10px 16px; font-size: 0.9rem; }
+    
+    /* Tombol FAB Melayang Diperkecil Sedikit */
+    .card-header .btn-primary, .card-header .btn-success { 
+        width: 55px !important; 
+        height: 55px !important; 
+        bottom: 25px !important; 
+        right: 20px !important; 
+    }
+    .card-header .btn-primary i, .card-header .btn-success i { font-size: 1.5rem !important; }
+    
+    .detail-header-hero { padding: 30px 20px 20px; border-radius: 25px 25px 0 0; }
+    .modern-detail-card { padding: 15px; }
+}
