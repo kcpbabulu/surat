@@ -793,11 +793,19 @@ function openModalReferensiPK() { document.getElementById('idRefPK').value = '';
 function openModalSM() { document.getElementById('idSuratMasuk').value=''; document.getElementById('title-sm').innerHTML='<i class="fa-solid fa-inbox text-primary"></i> Tambah Surat Masuk'; toggleD1Fields(); openModal('modal-surat-masuk'); }
 function openModalSK() { document.getElementById('idSuratKeluar').value=''; document.getElementById('title-sk').innerHTML='<i class="fa-solid fa-paper-plane text-success"></i> Buat Surat Keluar'; openModal('modal-surat-keluar'); }
 function openModalSPPK() { 
-    document.getElementById('idSPPK').value=''; document.getElementById('title-sppk').innerHTML='<i class="fa-solid fa-file-contract text-primary"></i> Input SPPK Baru'; 
-    let ops = '<option value="">-- Manual / Pilih Sumber (D1) --</option>'; 
-    const usedD1 = storeData['sppk'].map(s => s.debitur);
-    storeData['surat-masuk'].filter(d => d.jenisSurat === 'D1' && !usedD1.includes(d.pengirim)).forEach(d => { ops += `<option value="${d.pengirim}">${d.nomor} - ${d.pengirim}</option>`; }); 
-    document.getElementById('sppk-sumber-d1').innerHTML = ops;
+    // 1. Reset ID dan Judul Modal
+    document.getElementById('idSPPK').value = ''; 
+    document.getElementById('title-sppk').innerHTML = '** Input SPPK Baru'; 
+    
+    // 2. Kosongkan isian form agar tidak ada sisa data sebelumnya
+    document.getElementById('sppk-debitur').value = '';
+    document.getElementById('sppk-plafon').value = '';
+    document.getElementById('sppk-jangkawaktu').value = '';
+    
+    // 3. Panggil mesin pembuat dropdown yang benar dan sudah anti-duplikat
+    refreshDropdownTransaksi();
+    
+    // 4. Tampilkan Modal ke layar
     openModal('modal-sppk'); 
 }
 function openModalPK() { document.getElementById('idPK').value=''; document.getElementById('title-pk').innerHTML='<i class="fa-solid fa-file-signature text-orange"></i> Terbitkan PK Baru'; populatePKForm(); openModal('modal-pk'); }
