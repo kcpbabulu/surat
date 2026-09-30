@@ -437,6 +437,9 @@ async function loadDataTabel(jenis) {
     }
 }
 
+// ========================================================
+// --- PENCEGAH DUPLIKASI INPUT (SMART EXCLUSION DROPDOWN) ---
+// ========================================================
 function refreshDropdownTransaksi() {
     try {
         // 1. FILTER SUMBER D1 (Cegah Surat Masuk D1 yang sudah terbit SPPK)
@@ -488,6 +491,14 @@ function refreshDropdownTransaksi() {
         console.error("Gagal menyaring Dropdown Anti-Duplikat: ", error);
     }
 }
+
+// ========================================================
+// --- OMNISEARCH PINTAR (ANTI-ERROR & SORTING ENGINE) ---
+// ========================================================
+// ========================================================
+// --- OMNISEARCH PINTAR & MESIN PAGINASI (10 DATA/HALAMAN) ---
+// ========================================================
+
 
 
 // 2. Fungsi Pemicu Pindah Halaman
@@ -758,22 +769,14 @@ function openModalUser() {
 function openModalReferensiPK() { document.getElementById('idRefPK').value = ''; document.getElementById('kodeRefPK').value = ''; document.getElementById('descRefPK').value = ''; document.getElementById('title-referensi-pk').innerHTML = '<i class="fa-solid fa-list text-primary"></i> Tambah Referensi PK'; openModal('modal-referensi-pk'); }
 function openModalSM() { document.getElementById('idSuratMasuk').value=''; document.getElementById('title-sm').innerHTML='<i class="fa-solid fa-inbox text-primary"></i> Tambah Surat Masuk'; toggleD1Fields(); openModal('modal-surat-masuk'); }
 function openModalSK() { document.getElementById('idSuratKeluar').value=''; document.getElementById('title-sk').innerHTML='<i class="fa-solid fa-paper-plane text-success"></i> Buat Surat Keluar'; openModal('modal-surat-keluar'); }
-// 1. FUNGSI MEMBUKA MODAL SPPK (Dibersihkan dari duplikasi kode)
 function openModalSPPK() { 
-    document.getElementById('idSPPK').value = ''; 
-    document.getElementById('title-sppk').innerHTML = '** Input SPPK Baru'; 
-    
-    // Kosongkan isian form saat pertama dibuka
-    document.getElementById('sppk-debitur').value = '';
-    document.getElementById('sppk-plafon').value = '';
-    document.getElementById('sppk-jangkawaktu').value = '';
-    
-    // Panggil mesin pembuat dropdown yang sudah disempurnakan
-    refreshDropdownTransaksi();
-    
+    document.getElementById('idSPPK').value=''; document.getElementById('title-sppk').innerHTML='<i class="fa-solid fa-file-contract text-primary"></i> Input SPPK Baru'; 
+    let ops = '<option value="">-- Manual / Pilih Sumber (D1) --</option>'; 
+    const usedD1 = storeData['sppk'].map(s => s.debitur);
+    storeData['surat-masuk'].filter(d => d.jenisSurat === 'D1' && !usedD1.includes(d.pengirim)).forEach(d => { ops += `<option value="${d.pengirim}">${d.nomor} - ${d.pengirim}</option>`; }); 
+    document.getElementById('sppk-sumber-d1').innerHTML = ops;
     openModal('modal-sppk'); 
 }
-
 function openModalPK() { document.getElementById('idPK').value=''; document.getElementById('title-pk').innerHTML='<i class="fa-solid fa-file-signature text-orange"></i> Terbitkan PK Baru'; populatePKForm(); openModal('modal-pk'); }
 function openModalDisposisi(id) {
     document.getElementById('idSuratDisposisi').value = id; let ops = '<option value="">Pilih Staf...</option>';
@@ -781,27 +784,9 @@ function openModalDisposisi(id) {
     document.getElementById('disposisi-staf').innerHTML = ops; openModal('modal-disposisi');
 }
 
-// ========================================================
-// --- FUNGSI AUTOFILL BERDASARKAN ID UNIK ---
-// ========================================================
 function autofillSPPK() {
-    // Tangkap ID unik surat dari dropdown (Bukan lagi nama debitur)
-    const d1Id = document.getElementById('sppk-sumber-d1').value; 
-    
-    // Cari kecocokan data menggunakan ID tersebut
-    const data = storeData['surat-masuk'].find(d => String(d.id) === String(d1Id));
-    
-    if (data) { 
-        document.getElementById('sppk-debitur').value = data.pengirim || ''; 
-        document.getElementById('sppk-plafon').value = data.plafon ? formatRupiah(data.plafon.toString()) : ''; 
-        document.getElementById('sppk-jangkawaktu').value = data.jangkaWaktu || ''; 
-        document.getElementById('sppk-jeniskredit').value = data.jenisKredit || 'Kredit Modal Kerja'; 
-    } else {
-        // Jika staf kembali memilih "-- Manual --", kosongkan otomatis formnya
-        document.getElementById('sppk-debitur').value = ''; 
-        document.getElementById('sppk-plafon').value = ''; 
-        document.getElementById('sppk-jangkawaktu').value = ''; 
-    }
+    const deb = document.getElementById('sppk-sumber-d1').value; const data = storeData['surat-masuk'].find(d => d.jenisSurat==='D1' && d.pengirim===deb);
+    if(data) { document.getElementById('sppk-debitur').value = data.pengirim; document.getElementById('sppk-plafon').value = formatRupiah(data.plafon.toString()); document.getElementById('sppk-jangkawaktu').value = data.jangkaWaktu; document.getElementById('sppk-jeniskredit').value = data.jenisKredit; }
 }
 
 function editData(jenis, id) {
@@ -1654,4 +1639,3 @@ document.addEventListener('change', function(e) {
         console.error("Auto-Fill Background Info: ", err);
     }
 });
-
