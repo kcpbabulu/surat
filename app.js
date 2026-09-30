@@ -437,9 +437,6 @@ async function loadDataTabel(jenis) {
     }
 }
 
-// ========================================================
-// --- PENCEGAH DUPLIKASI INPUT (SMART EXCLUSION DROPDOWN) ---
-// ========================================================
 function refreshDropdownTransaksi() {
     try {
         // 1. FILTER SUMBER D1 (Surat Masuk)
