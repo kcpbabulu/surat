@@ -437,59 +437,70 @@ async function loadDataTabel(jenis) {
     }
 }
 
-// 2. MESIN DROPDOWN TRANSAKSI (ANTI-BLANK & ANTI NAMA GANDA)
+// ========================================================
+// --- PENCEGAH DUPLIKASI INPUT (SMART EXCLUSION DROPDOWN) ---
+// ========================================================
 function refreshDropdownTransaksi() {
     try {
-        // --- A. DROPDOWN SUMBER D1 (Surat Masuk) ---
+        // 1. FILTER SUMBER D1 (Surat Masuk)
         const selectD1 = document.getElementById('sppk-sumber-d1');
         if (selectD1 && storeData['surat-masuk']) {
             
-            // Ambil semua surat D1 yang belum selesai, tanpa mempedulikan nama
             const d1Tersedia = storeData['surat-masuk'].filter(sm => {
                 if (!sm) return false;
+                
+                // KUNCI PERBAIKAN 1: Hapus pengecekan nama ganda. 
+                // Cukup andalkan status suratnya saja. Jika belum diterbitkan SPPK, maka loloskan!
                 const isBelumDiproses = sm.status !== 'SPPK Diterbitkan';
+                
                 return sm.jenisSurat === 'D1' && isBelumDiproses;
             });
             
-            // WAJIB ADA TAG  SEPERTI INI AGAR KOTAK TIDAK BLANK:
             let htmlD1 = '-- Manual / Pilih Sumber (D1) --';
             
-            // Masukkan data menggunakan ID Surat sebagai Kunci Utama
             d1Tersedia.forEach(sm => {
                 let nominal = sm.plafon ? formatRupiah(sm.plafon.toString()) : 'Rp 0';
+                
+                // KUNCI PERBAIKAN 2: Gunakan ID Unik (sm.id) sebagai value, BUKAN nama!
+                // Tambahkan plafon di teks agar staf bisa membedakan kredit A & B untuk nasabah yang sama
                 htmlD1 += `\({sm.nomor} -\){sm.pengirim} (${nominal})`;
             });
-            
             selectD1.innerHTML = htmlD1;
         }
 
-        // --- B. DROPDOWN SPPK INDUK (Untuk PK) ---
+        // 2. FILTER SPPK INDUK (Cegah SPPK yang sudah jadi Kontrak PK)
         const selectSPPK = document.getElementById('select-sppk-induk');
         if (selectSPPK && storeData['sppk']) {
             const sppkSudahPK = (storeData['pk'] || []).map(p => String(p.sppkInduk).trim());
+            
             const sppkTersedia = storeData['sppk'].filter(sppk => {
                 if (!sppk) return false;
-                return sppk.status !== 'Sudah PK' && !sppkSudahPK.includes(String(sppk.nomorSPPK).trim()); 
+                const noSPPK = String(sppk.nomorSPPK).trim();
+                const isBelumPK = sppk.status !== 'Sudah PK'; 
+                const isBelumAdaDiPK = !sppkSudahPK.includes(noSPPK); 
+                
+                return isBelumPK && isBelumAdaDiPK;
             });
             
             let htmlSPPK = 'Pilih SPPK Induk...';
             sppkTersedia.forEach(sppk => {
+                // Di sini aman menggunakan nomorSPPK karena nomor surat pasti berbeda
                 htmlSPPK += `\({sppk.nomorSPPK} -\){sppk.debitur}`;
             });
             selectSPPK.innerHTML = htmlSPPK;
         }
     } catch (error) {
-        console.error("Gagal menyaring Dropdown: ", error);
+        console.error("Gagal menyaring Dropdown Anti-Duplikat: ", error);
     }
 }
 
-// 3. FUNGSI AUTOFILL
+// 3. FUNGSI AUTOFILL (Harus disesuaikan untuk membaca ID Unik)
 function autofillSPPK() {
-    // Tangkap ID unik (sm.id) dari dropdown yang baru, bukan nama
-    const d1Id = document.getElementById('sppk-sumber-d1').value; 
+    // Tangkap ID unik (SM-....) dari dropdown, bukan nama
+    const targetId = document.getElementById('sppk-sumber-d1').value; 
     
-    // Tarik data dari memori browser berdasarkan ID unik
-    const data = storeData['surat-masuk'].find(d => String(d.id) === String(d1Id));
+    // Cari data berdasarkan kecocokan ID unik
+    const data = storeData['surat-masuk'].find(d => String(d.id) === String(targetId));
     
     if(data) { 
         document.getElementById('sppk-debitur').value = data.pengirim || ''; 
@@ -497,7 +508,7 @@ function autofillSPPK() {
         document.getElementById('sppk-jangkawaktu').value = data.jangkaWaktu || ''; 
         document.getElementById('sppk-jeniskredit').value = data.jenisKredit || 'Kredit Modal Kerja'; 
     } else {
-        // Jika staf kembali memilih "Manual", kosongkan isian form
+        // Kosongkan jika staf memilih "Manual"
         document.getElementById('sppk-debitur').value = ''; 
         document.getElementById('sppk-plafon').value = ''; 
         document.getElementById('sppk-jangkawaktu').value = '';
@@ -781,22 +792,22 @@ function openModalUser() {
 function openModalReferensiPK() { document.getElementById('idRefPK').value = ''; document.getElementById('kodeRefPK').value = ''; document.getElementById('descRefPK').value = ''; document.getElementById('title-referensi-pk').innerHTML = '<i class="fa-solid fa-list text-primary"></i> Tambah Referensi PK'; openModal('modal-referensi-pk'); }
 function openModalSM() { document.getElementById('idSuratMasuk').value=''; document.getElementById('title-sm').innerHTML='<i class="fa-solid fa-inbox text-primary"></i> Tambah Surat Masuk'; toggleD1Fields(); openModal('modal-surat-masuk'); }
 function openModalSK() { document.getElementById('idSuratKeluar').value=''; document.getElementById('title-sk').innerHTML='<i class="fa-solid fa-paper-plane text-success"></i> Buat Surat Keluar'; openModal('modal-surat-keluar'); }
-// 1. FUNGSI MEMBUKA MODAL SPPK
 function openModalSPPK() { 
+    // 1. Reset ID dan Judul Modal
     document.getElementById('idSPPK').value = ''; 
     document.getElementById('title-sppk').innerHTML = '** Input SPPK Baru'; 
     
-    // Kosongkan form agar bersih saat dibuka
+    // 2. Kosongkan isian form agar tidak ada sisa data sebelumnya
     document.getElementById('sppk-debitur').value = '';
     document.getElementById('sppk-plafon').value = '';
     document.getElementById('sppk-jangkawaktu').value = '';
     
-    // Panggil mesin pembuat dropdown
+    // 3. Panggil mesin pembuat dropdown yang benar dan sudah anti-duplikat
     refreshDropdownTransaksi();
     
+    // 4. Tampilkan Modal ke layar
     openModal('modal-sppk'); 
 }
-
 function openModalPK() { document.getElementById('idPK').value=''; document.getElementById('title-pk').innerHTML='<i class="fa-solid fa-file-signature text-orange"></i> Terbitkan PK Baru'; populatePKForm(); openModal('modal-pk'); }
 function openModalDisposisi(id) {
     document.getElementById('idSuratDisposisi').value = id; let ops = '<option value="">Pilih Staf...</option>';
