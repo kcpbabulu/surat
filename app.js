@@ -437,34 +437,30 @@ async function loadDataTabel(jenis) {
     }
 }
 
-// ========================================================
-// --- PENCEGAH DUPLIKASI INPUT (SMART EXCLUSION DROPDOWN) ---
-// ========================================================
+// 2. MESIN DROPDOWN TRANSAKSI (Berbasis ID Unik & Tahan Nama Ganda)
 function refreshDropdownTransaksi() {
     try {
-        // 1. FILTER SUMBER D1 (Surat Masuk)
+        // --- FILTER SUMBER D1 (Surat Masuk) ---
         const selectD1 = document.getElementById('sppk-sumber-d1');
         if (selectD1 && storeData['surat-masuk']) {
             
-            // Ambil semua surat masuk yang berjenis D1
+            // Ambil semua surat D1 yang belum selesai diproses (tanpa memblokir nama)
             const d1Tersedia = storeData['surat-masuk'].filter(sm => {
                 if (!sm) return false;
-                // Kita HAPUS blokir berdasarkan nama. 
-                // Sekarang semua pengajuan D1 akan muncul selama statusnya belum ditandai selesai/ditolak.
-                return sm.jenisSurat === 'D1'; 
+                return sm.jenisSurat === 'D1' && sm.status !== 'Selesai Diproses'; 
             });
             
             let htmlD1 = '-- Manual / Pilih Sumber (D1) --';
             
-            // Urutkan dari yang terbaru, lalu buat opsi Dropdown
+            // Urutkan dari yang terbaru, gunakan ID sebagai value, dan tambahkan info plafon
             d1Tersedia.sort((a,b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()).forEach(sm => {
-                // KUNCI PERBAIKAN: value diisi sm.id, dan teksnya ditambah info nominal plafon
                 htmlD1 += `\({sm.nomor} -\){sm.pengirim} (${formatRupiah(sm.plafon)})`;
             });
+            
             selectD1.innerHTML = htmlD1;
         }
 
-        // 2. FILTER SPPK INDUK (Cegah SPPK yang sudah jadi Kontrak PK)
+        // --- FILTER SPPK INDUK (Cegah SPPK yang sudah jadi Kontrak PK) ---
         const selectSPPK = document.getElementById('select-sppk-induk');
         if (selectSPPK && storeData['sppk']) {
             const sppkSudahPK = (storeData['pk'] || []).map(p => String(p.sppkInduk).trim());
@@ -485,7 +481,7 @@ function refreshDropdownTransaksi() {
             selectSPPK.innerHTML = htmlSPPK;
         }
     } catch (error) {
-        console.error("Gagal menyaring Dropdown Anti-Duplikat: ", error);
+        console.error("Gagal menyaring Dropdown: ", error);
     }
 }
 
@@ -757,15 +753,17 @@ function openModalUser() {
 function openModalReferensiPK() { document.getElementById('idRefPK').value = ''; document.getElementById('kodeRefPK').value = ''; document.getElementById('descRefPK').value = ''; document.getElementById('title-referensi-pk').innerHTML = '<i class="fa-solid fa-list text-primary"></i> Tambah Referensi PK'; openModal('modal-referensi-pk'); }
 function openModalSM() { document.getElementById('idSuratMasuk').value=''; document.getElementById('title-sm').innerHTML='<i class="fa-solid fa-inbox text-primary"></i> Tambah Surat Masuk'; toggleD1Fields(); openModal('modal-surat-masuk'); }
 function openModalSK() { document.getElementById('idSuratKeluar').value=''; document.getElementById('title-sk').innerHTML='<i class="fa-solid fa-paper-plane text-success"></i> Buat Surat Keluar'; openModal('modal-surat-keluar'); }
+// 1. FUNGSI MEMBUKA MODAL SPPK (Dibersihkan dari duplikasi kode)
 function openModalSPPK() { 
-    document.getElementById('idSPPK').value=''; 
-    document.getElementById('title-sppk').innerHTML='** Input SPPK Baru'; 
+    document.getElementById('idSPPK').value = ''; 
+    document.getElementById('title-sppk').innerHTML = '** Input SPPK Baru'; 
     
-    // Panggil mesin pembuat dropdown yang sudah diperbaiki
+    // Panggil mesin pembuat dropdown yang sudah disempurnakan
     refreshDropdownTransaksi();
     
     openModal('modal-sppk'); 
 }
+
 function openModalPK() { document.getElementById('idPK').value=''; document.getElementById('title-pk').innerHTML='<i class="fa-solid fa-file-signature text-orange"></i> Terbitkan PK Baru'; populatePKForm(); openModal('modal-pk'); }
 function openModalDisposisi(id) {
     document.getElementById('idSuratDisposisi').value = id; let ops = '<option value="">Pilih Staf...</option>';
@@ -777,10 +775,10 @@ function openModalDisposisi(id) {
 // --- FUNGSI AUTOFILL BERDASARKAN ID UNIK ---
 // ========================================================
 function autofillSPPK() {
-    // Menangkap ID Surat (bukan lagi nama) dari dropdown
+    // Tangkap ID unik surat dari dropdown
     const d1Id = document.getElementById('sppk-sumber-d1').value; 
     
-    // Cari data di database sementara (storeData) berdasarkan ID
+    // Cari kecocokan menggunakan ID
     const data = storeData['surat-masuk'].find(d => d.id === d1Id);
     
     if(data) { 
