@@ -442,25 +442,28 @@ async function loadDataTabel(jenis) {
 // ========================================================
 function refreshDropdownTransaksi() {
     try {
-        // 1. FILTER SUMBER D1 (Cegah Surat Masuk D1 yang sudah terbit SPPK)
+        // 1. FILTER SUMBER D1 (Surat Masuk)
         const selectD1 = document.getElementById('sppk-sumber-d1');
         if (selectD1 && storeData['surat-masuk']) {
-            // Ambil semua nama debitur yang SUDAH terdaftar secara sah di tabel SPPK
-            const debiturSudahSPPK = (storeData['sppk'] || []).map(s => String(s.debitur).toLowerCase().trim());
             
             const d1Tersedia = storeData['surat-masuk'].filter(sm => {
                 if (!sm) return false;
-                const namaSM = String(sm.pengirim).toLowerCase().trim();
-                const isBelumDiproses = sm.status !== 'SPPK Diterbitkan'; // Cek Status
-                const isBelumAdaDiSPPK = !debiturSudahSPPK.includes(namaSM); // Pengecekan Fisik Ekstra
                 
-                // Hanya loloskan jika: Jenis D1 AND Belum Diproses AND Belum punya SPPK
-                return sm.jenisSurat === 'D1' && isBelumDiproses && isBelumAdaDiSPPK;
+                // KUNCI PERBAIKAN 1: Hapus pengecekan nama ganda. 
+                // Cukup andalkan status suratnya saja. Jika belum diterbitkan SPPK, maka loloskan!
+                const isBelumDiproses = sm.status !== 'SPPK Diterbitkan';
+                
+                return sm.jenisSurat === 'D1' && isBelumDiproses;
             });
             
-            let htmlD1 = '<option value="">-- Manual / Pilih Sumber (D1) --</option>';
+            let htmlD1 = '-- Manual / Pilih Sumber (D1) --';
+            
             d1Tersedia.forEach(sm => {
-                htmlD1 += `<option value="${sm.pengirim}">${sm.nomor} - ${sm.pengirim}</option>`;
+                let nominal = sm.plafon ? formatRupiah(sm.plafon.toString()) : 'Rp 0';
+                
+                // KUNCI PERBAIKAN 2: Gunakan ID Unik (sm.id) sebagai value, BUKAN nama!
+                // Tambahkan plafon di teks agar staf bisa membedakan kredit A & B untuk nasabah yang sama
+                htmlD1 += `\({sm.nomor} -\){sm.pengirim} (${nominal})`;
             });
             selectD1.innerHTML = htmlD1;
         }
@@ -468,27 +471,47 @@ function refreshDropdownTransaksi() {
         // 2. FILTER SPPK INDUK (Cegah SPPK yang sudah jadi Kontrak PK)
         const selectSPPK = document.getElementById('select-sppk-induk');
         if (selectSPPK && storeData['sppk']) {
-            // Ambil semua nomor SPPK Induk yang SUDAH memiliki kontrak PK aktif
             const sppkSudahPK = (storeData['pk'] || []).map(p => String(p.sppkInduk).trim());
             
             const sppkTersedia = storeData['sppk'].filter(sppk => {
                 if (!sppk) return false;
                 const noSPPK = String(sppk.nomorSPPK).trim();
-                const isBelumPK = sppk.status !== 'Sudah PK'; // Cek Status
-                const isBelumAdaDiPK = !sppkSudahPK.includes(noSPPK); // Pengecekan Fisik Ekstra
+                const isBelumPK = sppk.status !== 'Sudah PK'; 
+                const isBelumAdaDiPK = !sppkSudahPK.includes(noSPPK); 
                 
-                // Hanya loloskan jika: Belum PK AND Nomornya tidak ditemukan di Tabel PK
                 return isBelumPK && isBelumAdaDiPK;
             });
             
-            let htmlSPPK = '<option value="">Pilih SPPK...</option>';
+            let htmlSPPK = 'Pilih SPPK Induk...';
             sppkTersedia.forEach(sppk => {
-                htmlSPPK += `<option value="${sppk.nomorSPPK}">${sppk.nomorSPPK} - ${sppk.debitur}</option>`;
+                // Di sini aman menggunakan nomorSPPK karena nomor surat pasti berbeda
+                htmlSPPK += `\({sppk.nomorSPPK} -\){sppk.debitur}`;
             });
             selectSPPK.innerHTML = htmlSPPK;
         }
     } catch (error) {
         console.error("Gagal menyaring Dropdown Anti-Duplikat: ", error);
+    }
+}
+
+// 3. FUNGSI AUTOFILL (Harus disesuaikan untuk membaca ID Unik)
+function autofillSPPK() {
+    // Tangkap ID unik (SM-....) dari dropdown, bukan nama
+    const targetId = document.getElementById('sppk-sumber-d1').value; 
+    
+    // Cari data berdasarkan kecocokan ID unik
+    const data = storeData['surat-masuk'].find(d => String(d.id) === String(targetId));
+    
+    if(data) { 
+        document.getElementById('sppk-debitur').value = data.pengirim || ''; 
+        document.getElementById('sppk-plafon').value = data.plafon ? formatRupiah(data.plafon.toString()) : ''; 
+        document.getElementById('sppk-jangkawaktu').value = data.jangkaWaktu || ''; 
+        document.getElementById('sppk-jeniskredit').value = data.jenisKredit || 'Kredit Modal Kerja'; 
+    } else {
+        // Kosongkan jika staf memilih "Manual"
+        document.getElementById('sppk-debitur').value = ''; 
+        document.getElementById('sppk-plafon').value = ''; 
+        document.getElementById('sppk-jangkawaktu').value = '';
     }
 }
 
