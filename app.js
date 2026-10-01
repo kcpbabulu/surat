@@ -451,7 +451,7 @@ function refreshDropdownTransaksi() {
                 if (!sm) return false;
                 
                 // Status wajib BUKAN 'SPPK Diterbitkan'
-                const isBelumDiproses = sm.status !== 'SPPK Diterbitkan';
+                const isBelumDiproses = sm.status == 'Belum Diproses';
                 
                 return sm.jenisSurat === 'D1' && isBelumDiproses;
             });
