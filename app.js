@@ -446,23 +446,19 @@ function refreshDropdownTransaksi() {
         const selectD1 = document.getElementById('sppk-sumber-d1');
         if (selectD1 && storeData['surat-masuk']) {
             
-            // Ambil semua surat D1 yang statusnya 'Belum Diproses' (TANPA mengecek nama!)
+            // Ambil semua surat D1 yang statusnya belum diterbitkan SPPK
             const d1Tersedia = storeData['surat-masuk'].filter(sm => {
                 if (!sm) return false;
-                
-                // Status wajib BUKAN 'SPPK Diterbitkan'
-                const isBelumDiproses = sm.status !== 'SPPK Diterbitkan';
-                
+                const status = String(sm.status || '').trim();
+                const isBelumDiproses = status !== 'SPPK Diterbitkan';
                 return sm.jenisSurat === 'D1' && isBelumDiproses;
             });
             
-            // Siapkan kerangka awal agar kotak dropdown tidak kosong
             let htmlD1 = '-- Manual / Pilih Sumber (D1) --';
             
-            // Isi dropdown dengan data, gunakan ID Surat sebagai "value" rahasia
-            d1Tersedia.sort((a,b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()).forEach(sm => {
-                let nominal = sm.plafon ? formatRupiah(sm.plafon.toString()) : 'Rp 0';
-                // Value = sm.id (Kunci utama agar autofill tidak tertukar)
+            // Urutkan tanggal dari yang terbaru dan simpan ID unik pada value
+            d1Tersedia.sort((a, b) => new Date(b.tanggal || 0).getTime() - new Date(a.tanggal || 0).getTime()).forEach(sm => {
+                const nominal = sm.plafon ? formatRupiah(sm.plafon.toString()) : 'Rp 0';
                 htmlD1 += `\({sm.nomor} -\){sm.pengirim} (${nominal})`;
             });
             
@@ -472,12 +468,13 @@ function refreshDropdownTransaksi() {
         // --- 2. FILTER SPPK INDUK (Untuk PK) ---
         const selectSPPK = document.getElementById('select-sppk-induk');
         if (selectSPPK && storeData['sppk']) {
-            const sppkSudahPK = (storeData['pk'] || []).map(p => String(p.sppkInduk).trim());
+            const sppkSudahPK = (storeData['pk'] || []).map(p => String(p.sppkInduk || '').trim());
             
             const sppkTersedia = storeData['sppk'].filter(sppk => {
                 if (!sppk) return false;
-                const noSPPK = String(sppk.nomorSPPK).trim();
-                const isBelumPK = sppk.status !== 'Sudah PK'; 
+                const noSPPK = String(sppk.nomorSPPK || '').trim();
+                const status = String(sppk.status || '').trim();
+                const isBelumPK = status !== 'Sudah PK'; 
                 const isBelumAdaDiPK = !sppkSudahPK.includes(noSPPK); 
                 
                 return isBelumPK && isBelumAdaDiPK;
@@ -487,6 +484,7 @@ function refreshDropdownTransaksi() {
             sppkTersedia.forEach(sppk => {
                 htmlSPPK += `\({sppk.nomorSPPK} -\){sppk.debitur}`;
             });
+            
             selectSPPK.innerHTML = htmlSPPK;
         }
     } catch (error) {
