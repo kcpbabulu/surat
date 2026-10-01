@@ -454,9 +454,10 @@ function refreshDropdownTransaksi() {
                 return sm.jenisSurat === 'D1' && isBelumDiproses;
             });
             
+            // Bungkus opsi default dengan tag 
             let htmlD1 = '-- Manual / Pilih Sumber (D1) --';
             
-            // Urutkan tanggal dari yang terbaru dan simpan ID unik pada value
+            // Urutkan tanggal terbaru dan gunakan ID surat (sm.id) sebagai value
             d1Tersedia.sort((a, b) => new Date(b.tanggal || 0).getTime() - new Date(a.tanggal || 0).getTime()).forEach(sm => {
                 const nominal = sm.plafon ? formatRupiah(sm.plafon.toString()) : 'Rp 0';
                 htmlD1 += `\({sm.nomor} -\){sm.pengirim} (${nominal})`;
@@ -480,6 +481,7 @@ function refreshDropdownTransaksi() {
                 return isBelumPK && isBelumAdaDiPK;
             });
             
+            // Bungkus opsi default SPPK dengan tag 
             let htmlSPPK = 'Pilih SPPK Induk...';
             sppkTersedia.forEach(sppk => {
                 htmlSPPK += `\({sppk.nomorSPPK} -\){sppk.debitur}`;
@@ -499,19 +501,29 @@ function autofillSPPK() {
     // 1. Tangkap ID unik surat dari dropdown D1
     const d1Id = document.getElementById('sppk-sumber-d1').value; 
     
-    // 2. Cari data surat berdasarkan ID tersebut (Bukan berdasarkan nama)
-    const data = storeData['surat-masuk'].find(d => String(d.id) === String(d1Id));
+    // 2. Cari data surat berdasarkan ID unik
+    const data = (storeData['surat-masuk'] || []).find(d => String(d.id) === String(d1Id));
     
     if (data) { 
         document.getElementById('sppk-debitur').value = data.pengirim || ''; 
         document.getElementById('sppk-plafon').value = data.plafon ? formatRupiah(data.plafon.toString()) : ''; 
         document.getElementById('sppk-jangkawaktu').value = data.jangkaWaktu || ''; 
         document.getElementById('sppk-jeniskredit').value = data.jenisKredit || 'Kredit Modal Kerja'; 
+
+        // Otomatis sinkronkan pilihan cabang jika elemen cabang tersedia
+        const selectCabang = document.querySelector('#modal-sppk select[name="pilihCabang"]');
+        if (selectCabang && data.cabang) {
+            Array.from(selectCabang.options).forEach(opt => {
+                if (opt.value && opt.value.includes(data.cabang)) {
+                    selectCabang.value = opt.value;
+                }
+            });
+        }
     } else {
-        // Jika pilih "-- Manual --", bersihkan form
+        // Jika memilih opsi manual, kosongkan form
         document.getElementById('sppk-debitur').value = ''; 
         document.getElementById('sppk-plafon').value = ''; 
-        document.getElementById('sppk-jangkawaktu').value = '';
+        document.getElementById('sppk-jangkawaktu').value = ''; 
     }
 }
 
