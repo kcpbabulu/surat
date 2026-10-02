@@ -451,11 +451,11 @@ function refreshDropdownTransaksi() {
             const d1Tersedia = storeData['surat-masuk'].filter(sm => {
                 if (!sm) return false;
                 const namaSM = String(sm.pengirim).toLowerCase().trim();
-                const isBelumDiproses = sm.status !== 'SPPK Diterbitkan'; // Cek Status
-              
+                const isBelumDiproses = sm.status !== 'Selesai Diproses'; // Cek Status
+                const isBelumAdaDiSPPK = !debiturSudahSPPK.includes(namaSM); // Pengecekan Fisik Ekstra
                 
                 // Hanya loloskan jika: Jenis D1 AND Belum Diproses AND Belum punya SPPK
-                return sm.jenisSurat === 'D1' && isBelumDiproses;
+                return sm.jenisSurat === 'D1' && isBelumDiproses && isBelumAdaDiSPPK;
             });
             
             let htmlD1 = '<option value="">-- Manual / Pilih Sumber (D1) --</option>';
@@ -785,7 +785,7 @@ function openModalDisposisi(id) {
 }
 
 function autofillSPPK() {
-    const deb = document.getElementById('sppk-sumber-d1').value; const data = storeData['surat-masuk'].find(d => d.jenisSurat==='D1');
+    const deb = document.getElementById('sppk-sumber-d1').value; const data = storeData['surat-masuk'].find(d => d.jenisSurat==='D1' && d.pengirim===deb);
     if(data) { document.getElementById('sppk-debitur').value = data.pengirim; document.getElementById('sppk-plafon').value = formatRupiah(data.plafon.toString()); document.getElementById('sppk-jangkawaktu').value = data.jangkaWaktu; document.getElementById('sppk-jeniskredit').value = data.jenisKredit; }
 }
 
