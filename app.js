@@ -770,13 +770,49 @@ function openModalReferensiPK() { document.getElementById('idRefPK').value = '';
 function openModalSM() { document.getElementById('idSuratMasuk').value=''; document.getElementById('title-sm').innerHTML='<i class="fa-solid fa-inbox text-primary"></i> Tambah Surat Masuk'; toggleD1Fields(); openModal('modal-surat-masuk'); }
 function openModalSK() { document.getElementById('idSuratKeluar').value=''; document.getElementById('title-sk').innerHTML='<i class="fa-solid fa-paper-plane text-success"></i> Buat Surat Keluar'; openModal('modal-surat-keluar'); }
 function openModalSPPK() { 
-    document.getElementById('idSPPK').value=''; document.getElementById('title-sppk').innerHTML='<i class="fa-solid fa-file-contract text-primary"></i> Input SPPK Baru'; 
-    let ops = '<option value="">-- Manual / Pilih Sumber (D1) --</option>'; 
-    const usedD1 = storeData['sppk'].map(s => s.debitur);
-    storeData['surat-masuk'].filter(d => d.jenisSurat === 'D1' && !usedD1.includes(d.pengirim)).forEach(d => { ops += `<option value="${d.pengirim}">${d.nomor} - ${d.pengirim}</option>`; }); 
-    document.getElementById('sppk-sumber-d1').innerHTML = ops;
+    // 1. Reset isian form dan judul modal
+    document.getElementById('idSPPK').value = ''; 
+    document.getElementById('title-sppk').innerHTML = '** Input SPPK Baru'; 
+    
+    // Kosongkan input agar tidak ada sisa data dari form sebelumnya
+    const debiturInput = document.getElementById('sppk-debitur');
+    const plafonInput = document.getElementById('sppk-plafon');
+    const waktuInput = document.getElementById('sppk-jangkawaktu');
+    
+    if (debiturInput) debiturInput.value = '';
+    if (plafonInput) plafonInput.value = '';
+    if (waktuInput) waktuInput.value = '';
+    
+    // 2. Susun opsi dropdown D1 berdasarkan ID unik
+    const selectD1 = document.getElementById('sppk-sumber-d1');
+    const dataSM = storeData['surat-masuk'] || [];
+    
+    let ops = '-- Manual / Pilih Sumber (D1) --';
+    
+    dataSM.filter(function(d) {
+        if (!d) return false;
+        const status = String(d.status || '').trim();
+        
+        // Saring HANYA berdasarkan jenis surat dan status
+        // Hapus logika !usedD1 agar nasabah lama dengan pengajuan baru tetap muncul
+        return d.jenisSurat === 'D1' && status !== 'SPPK Diterbitkan';
+    }).sort(function(a, b) {
+        // Urutkan dari data yang paling baru
+        return new Date(b.tanggal || 0).getTime() - new Date(a.tanggal || 0).getTime();
+    }).forEach(function(d) {
+        // Format angka menjadi nominal Rupiah agar informatif
+        const nominal = d.plafon ? formatRupiah(d.plafon.toString()) : 'Rp 0';
+        
+        // Value MENGGUNAKAN d.id (Bukan d.pengirim)
+        ops += `\({d.nomor} -\){d.pengirim} (${nominal})`;
+    });
+    
+    if (selectD1) selectD1.innerHTML = ops;
+    
+    // 3. Tampilkan jendela modal ke layar
     openModal('modal-sppk'); 
 }
+
 function openModalPK() { document.getElementById('idPK').value=''; document.getElementById('title-pk').innerHTML='<i class="fa-solid fa-file-signature text-orange"></i> Terbitkan PK Baru'; populatePKForm(); openModal('modal-pk'); }
 function openModalDisposisi(id) {
     document.getElementById('idSuratDisposisi').value = id; let ops = '<option value="">Pilih Staf...</option>';
