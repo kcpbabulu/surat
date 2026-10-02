@@ -770,39 +770,34 @@ function openModalReferensiPK() { document.getElementById('idRefPK').value = '';
 function openModalSM() { document.getElementById('idSuratMasuk').value=''; document.getElementById('title-sm').innerHTML='<i class="fa-solid fa-inbox text-primary"></i> Tambah Surat Masuk'; toggleD1Fields(); openModal('modal-surat-masuk'); }
 function openModalSK() { document.getElementById('idSuratKeluar').value=''; document.getElementById('title-sk').innerHTML='<i class="fa-solid fa-paper-plane text-success"></i> Buat Surat Keluar'; openModal('modal-surat-keluar'); }
 function openModalSPPK() { 
-    // 1. Reset form dan judul modal
+    // 1. Reset isian form modal
     document.getElementById('idSPPK').value = ''; 
     document.getElementById('title-sppk').innerHTML = '** Input SPPK Baru'; 
-    
     document.getElementById('sppk-debitur').value = '';
     document.getElementById('sppk-plafon').value = '';
     document.getElementById('sppk-jangkawaktu').value = '';
     
-    // 2. Filter data D1 berdasarkan status surat, bukan berdasarkan nama debitur
+    // 2. Isi Dropdown D1 langsung berdasarkan status (bukan cek nama kembar)
     const selectD1 = document.getElementById('sppk-sumber-d1');
-    if (selectD1 && storeData['surat-masuk']) {
-        const d1Tersedia = storeData['surat-masuk'].filter(function(d) {
-            if (!d) return false;
-            const status = String(d.status || '').trim();
-            return d.jenisSurat === 'D1' && status !== 'SPPK Diterbitkan';
-        });
-
-        let ops = '-- Manual / Pilih Sumber (D1) --';
-        
-        d1Tersedia.sort(function(a, b) {
-            return new Date(b.tanggal || 0).getTime() - new Date(a.tanggal || 0).getTime();
-        }).forEach(function(d) {
-            const nominal = d.plafon ? formatRupiah(d.plafon.toString()) : 'Rp 0';
-            // Gunakan d.id sebagai value agar autofill akurat
-            ops += '' + d.nomor + ' - ' + d.pengirim + ' (' + nominal + ')';
-        });
-
-        selectD1.innerHTML = ops;
-    }
+    const dataSM = storeData['surat-masuk'] || [];
+    
+    let ops = '-- Manual / Pilih Sumber (D1) --';
+    
+    dataSM.filter(function(d) {
+        if (!d) return false;
+        const status = String(d.status || '').trim();
+        return d.jenisSurat === 'D1' && status !== 'SPPK Diterbitkan';
+    }).forEach(function(d) {
+        const nominal = d.plafon ? formatRupiah(d.plafon.toString()) : 'Rp 0';
+        ops += '' + d.nomor + ' - ' + d.pengirim + ' (' + nominal + ')';
+    });
+    
+    if (selectD1) selectD1.innerHTML = ops;
     
     // 3. Tampilkan modal
     openModal('modal-sppk'); 
 }
+
 function openModalPK() { document.getElementById('idPK').value=''; document.getElementById('title-pk').innerHTML='<i class="fa-solid fa-file-signature text-orange"></i> Terbitkan PK Baru'; populatePKForm(); openModal('modal-pk'); }
 function openModalDisposisi(id) {
     document.getElementById('idSuratDisposisi').value = id; let ops = '<option value="">Pilih Staf...</option>';
