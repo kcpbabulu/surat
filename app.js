@@ -455,7 +455,7 @@ function refreshDropdownTransaksi() {
                 const isBelumAdaDiSPPK = !debiturSudahSPPK.includes(namaSM); // Pengecekan Fisik Ekstra
                 
                 // Hanya loloskan jika: Jenis D1 AND Belum Diproses AND Belum punya SPPK
-                return sm.jenisSurat === 'D1' && isBelumDiproses && isBelumAdaDiSPPK;
+                return sm.jenisSurat === 'D1' && isBelumDiproses;
             });
             
             let htmlD1 = '<option value="">-- Manual / Pilih Sumber (D1) --</option>';
