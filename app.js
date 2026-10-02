@@ -520,8 +520,7 @@ async function loadDataTabel(jenis) {
     }
 
     try {
-        const response = await apiPost(act);
-        const result = await response.json();
+        const result = await apiPost(act);
         
         if (result.status === 'success') {
             
@@ -1529,8 +1528,7 @@ async function deleteData(actionName, id, tableRef) {
     }
     if(!confirm("Yakin ingin memproses perintah ini?")) return;
     try { 
-        const response = await apiPost(actionName, { id: id }); 
-        const result = await response.json(); 
+        const result = await apiPost(actionName, { id: id }); 
         if (result.status === 'success') { 
             
             // GUNAKAN TOAST ALIH-ALIH SHOWALERT
@@ -1600,8 +1598,7 @@ async function submitIdentitas(e) {
     }
 
     try {
-        const response = await apiPost('saveConfig', payload);
-        const result = await response.json();
+        const result = await apiPost('saveConfig', payload);
         if(result.status === 'success') {
             showAlert('Berhasil', 'Identitas Aplikasi & Logo berhasil diperbarui!', 'success');
             setTimeout(loadConfig, 1000);
@@ -2327,8 +2324,7 @@ async function prosesUploadArsip() {
             }
         };
 
-        const response = await apiPost(requestData.action, requestData.payload);
-        const result = await response.json();
+        const result = await apiPost(requestData.action, requestData.payload);
 
         if (result.status === 'success') {
             closeModal('modal-upload-arsip');
