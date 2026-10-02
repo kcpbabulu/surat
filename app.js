@@ -451,7 +451,7 @@ function refreshDropdownTransaksi() {
             const d1Tersedia = storeData['surat-masuk'].filter(sm => {
                 if (!sm) return false;
                 const namaSM = String(sm.pengirim).toLowerCase().trim();
-                const isBelumDiproses = sm.status !== 'Selesai Diproses'; // Cek Status
+                const isBelumDiproses = sm.status === 'Belum Diproses'; // Cek Status
                 const isBelumAdaDiSPPK = !debiturSudahSPPK.includes(namaSM); // Pengecekan Fisik Ekstra
                 
                 // Hanya loloskan jika: Jenis D1 AND Belum Diproses AND Belum punya SPPK
