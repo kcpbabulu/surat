@@ -451,7 +451,7 @@ function refreshDropdownTransaksi() {
             const d1Tersedia = storeData['surat-masuk'].filter(sm => {
                 if (!sm) return false;
                 const namaSM = String(sm.pengirim).toLowerCase().trim();
-                const isBelumDiproses = sm.status !== 'SPPK Diterbitkan'; // Cek Status
+                const isBelumDiproses = sm.status === 'Belum Diproses'; // Cek Status
               
                 
                 // Hanya loloskan jika: Jenis D1 AND Belum Diproses AND Belum punya SPPK
