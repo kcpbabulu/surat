@@ -31,16 +31,16 @@ async function prefetchAllDatabase() {
         if(text) text.innerText = 'Menyinkronkan dokumen SPPK & PK...';
         if(progress) progress.style.width = '70%';
         await Promise.all([
-            loadDataTabel('sppk'),
-            loadDataTabel('pk')
+            ('sppk'),
+            ('pk')
         ]);
 
         // Tahap 4: Menarik Database Arsip (PENAMBAHAN BARU)
         if(text) text.innerText = 'Memuat Database Arsip DAKOPEN...';
         if(progress) progress.style.width = '90%';
         await Promise.all([
-            loadDataTabel('arsip'),
-            loadDataTabel('arsip-kredit')
+            ('arsip'),
+            ('arsip-kredit')
         ]);
 
         // Tahap Akhir: Selesai
@@ -196,12 +196,12 @@ function navigate(page) {
     // Pemicu aksi otomatis saat halaman dibuka
     if (page === 'dashboard') loadDashboardStats();
     else if (page === 'pengaturan') { 
-        loadDataTabel('cabang'); loadDataTabel('referensi-pk'); loadDataTabel('jenis-surat'); loadDataTabel('user'); loadConfig(); 
+        ('cabang'); ('referensi-pk'); ('jenis-surat'); ('user'); loadConfig(); 
     }
     // PERBAIKAN 2: Tambahkan 'arsip-kredit' agar filter & tabelnya dipicu
     else if (['surat-masuk', 'surat-keluar', 'disposisi', 'sppk', 'pk', 'arsip', 'arsip-kredit'].includes(page)) { 
         buildFilterUI(page); 
-        loadDataTabel(page); 
+        (page); 
     }
     
     // PERBAIKAN 3: Registrasi Judul Halaman Atas
@@ -452,7 +452,7 @@ function refreshDropdownTransaksi() {
                 if (!sm) return false;
                 const namaSM = String(sm.pengirim).toLowerCase().trim();
                 const isBelumDiproses = sm.status === 'Belum Diproses'; // Cek Status
-                const isBelumAdaDiSPPK = !debiturSudahSPPK.includes(namaSM); // Pengecekan Fisik Ekstra
+                
                 
                 // Hanya loloskan jika: Jenis D1 AND Belum Diproses AND Belum punya SPPK
                 return sm.jenisSurat === 'D1' && isBelumDiproses;
