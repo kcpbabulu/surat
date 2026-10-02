@@ -206,6 +206,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+function getAuthToken() {
+    return (currentUser && currentUser.authToken) || sessionStorage.getItem('bankaltimtara_auth_token') || '';
+}
+
+async function apiPost(action, payload = {}, options = {}) {
+    const bodyPayload = { ...(payload || {}) };
+    const needsAuth = !['authenticate', 'initApp', 'getConfig'].includes(action) && options.skipAuth !== true;
+    if (needsAuth) {
+        const token = getAuthToken();
+        if (!token) throw new Error('Sesi login tidak ditemukan. Silakan login kembali.');
+        bodyPayload.authToken = token;
+    }
+    const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action, payload: bodyPayload }) });
+    const result = await response.json();
+    if (result.status === 'error' && /sesi|login|akses ditolak/i.test(result.message || '')) { sessionStorage.removeItem('bankaltimtara_auth_token'); if (currentUser) currentUser.authToken = ''; }
+    return result;
+}
+
 async function initSystem() {
     try {
         const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'initApp' }) });
@@ -260,10 +278,11 @@ function toggleD1Fields() {
 // ========================================================
 // --- MESIN NAVIGASI & ROUTING HALAMAN ---
 // ========================================================
-function navigate(page) {
+function navigate(page, evt) {
     document.getElementById('sidebar').classList.remove('open'); 
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active')); 
-    event.currentTarget.classList.add('active');
+    const navEvent = evt || window.event;
+    if (navEvent && navEvent.currentTarget) navEvent.currentTarget.classList.add('active');
     
     // PERBAIKAN 1: Tambahkan 'arsip-kredit' ke daftar penyembunyi layar
     ['dashboard', 'surat-masuk', 'surat-keluar', 'disposisi', 'sppk', 'pk', 'arsip', 'arsip-kredit', 'laporan', 'pengaturan'].forEach(v => { 
@@ -278,12 +297,16 @@ function navigate(page) {
     // Pemicu aksi otomatis saat halaman dibuka
     if (page === 'dashboard') loadDashboardStats();
     else if (page === 'pengaturan') { 
-        ('cabang'); ('referensi-pk'); ('jenis-surat'); ('user'); loadConfig(); 
+        loadDataTabel('cabang');
+        loadDataTabel('referensi-pk');
+        loadDataTabel('jenis-surat');
+        loadDataTabel('user');
+        loadConfig(); 
     }
     // PERBAIKAN 2: Tambahkan 'arsip-kredit' agar filter & tabelnya dipicu
     else if (['surat-masuk', 'surat-keluar', 'disposisi', 'sppk', 'pk', 'arsip', 'arsip-kredit'].includes(page)) { 
-        buildFilterUI(page); 
-        (page); 
+        buildFilterUI(page);
+        loadDataTabel(page); 
     }
     
     // PERBAIKAN 3: Registrasi Judul Halaman Atas
@@ -304,8 +327,7 @@ function navigate(page) {
 
 async function loadDashboardStats() {
     try { 
-        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getDashboardStats' }) }); 
-        const result = await response.json(); 
+        const result = await apiPost('getDashboardStats'); 
         if (result.status === 'success') { 
             const data = result.data;
             document.getElementById('stat-sm').innerText = data.sm; document.getElementById('stat-sk').innerText = data.sk; document.getElementById('stat-sppk').innerText = data.sppk; document.getElementById('stat-pk').innerText = data.pk; 
@@ -429,7 +451,7 @@ function buildFilterUI(jenis) {
     populateCabangFilters(); if (jenis === 'surat-masuk' || jenis === 'surat-keluar') populateJenisSuratFilters();
 }
 
-function populateJenisSuratFilters() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getJenisSurat' }) }).then(res => res.json()).then(result => { if(result.status === 'success') { let options = '<option value="">Semua Jenis Surat</option>'; result.data.forEach(j => options += `<option value="${j.kode}">${j.kode} - ${j.nama}</option>`); document.querySelectorAll('.sel-jenissurat-filter').forEach(el => { el.innerHTML = options; }); } }); }
+function populateJenisSuratFilters() { apiPost('getJenisSurat').then(result => { if(result.status === 'success') { let options = '<option value="">Semua Jenis Surat</option>'; result.data.forEach(j => options += `<option value="${j.kode}">${j.kode} - ${j.nama}</option>`); document.querySelectorAll('.sel-jenissurat-filter').forEach(el => { el.innerHTML = options; }); } }); }
 // ========================================================
 // --- PERBAIKAN DISTRIBUSI DROPDOWN CABANG ---
 // ========================================================
@@ -491,8 +513,14 @@ async function loadDataTabel(jenis) {
     else if (jenis === 'cabang') act = 'getCabang';
     else if (jenis === 'arsip-kredit') act = 'getArsipKredit'; // <-- Kata sandi baru untuk backend
 
+    if (!act) {
+        console.error('Action data tidak dikenal:', jenis);
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--danger);padding:20px;">Modul data tidak dikenali.</td></tr>';
+        return;
+    }
+
     try {
-        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: act }) });
+        const response = await apiPost(act);
         const result = await response.json();
         
         if (result.status === 'success') {
@@ -524,7 +552,8 @@ async function loadDataTabel(jenis) {
 // --- IDENTITAS BERDASARKAN ID DOKUMEN, BUKAN NAMA
 // ========================================================
 
-function refreshDropdownTransaksi() {
+function refreshDropdownTransaksi(options = {}) {
+    const keepD1Id = normalizeId(options.keepD1Id || document.getElementById('sppk-sumber-d1')?.value || '');
 
     try {
 
@@ -596,15 +625,15 @@ function refreshDropdownTransaksi() {
                         d1SudahSPPK.has(d1Id) ||
                         d1SudahSPPK.has(d1Nomor);
 
-                    if (sudahDigunakan) {
+                    if (sudahDigunakan && d1Id !== keepD1Id) {
                         return false;
                     }
 
                     // Status yang secara eksplisit selesai
-                    if (
+                    if (d1Id !== keepD1Id && (
                         status.includes('SUDAH SPPK') ||
                         status.includes('SPPK DITERBITKAN')
-                    ) {
+                    )) {
                         return false;
                     }
 
@@ -739,8 +768,9 @@ function refreshDropdownTransaksi() {
 
             sppkTersedia.forEach(sppk => {
 
-                const nomorSPPK =
-                    getSPPKKey(sppk);
+                const nomorSPPK = getSPPKKey(sppk);
+                const sppkId = normalizeId(sppk.id);
+                if (!sppkId) return;
 
                 const nama =
                     sppk.debitur ||
@@ -753,7 +783,7 @@ function refreshDropdownTransaksi() {
                         : 'Rp 0';
 
                 html += `
-                    <option value="${escapeHtmlAttr(nomorSPPK)}">
+                    <option value="${escapeHtmlAttr(sppkId)}">
                         ${escapeHtml(nomorSPPK)}
                         - ${escapeHtml(nama)}
                         - ${escapeHtml(plafon)}
@@ -1207,7 +1237,8 @@ function openModalSPPK() {
     // RESET FORM
     // ==================================================
 
-    const form = document.getElementById('modal-sppk');
+    const form = document.getElementById('formSPPK');
+    if (form) form.reset();
 
     document.getElementById('idSPPK').value = '';
 
@@ -1249,8 +1280,6 @@ function setSPPKSourceD1(data) {
 
     if (!select || !data) return;
 
-    refreshDropdownTransaksi();
-
     const sumber =
         normalizeId(
             data.sumberD1Id ||
@@ -1259,6 +1288,8 @@ function setSPPKSourceD1(data) {
         );
 
     if (!sumber) return;
+
+    refreshDropdownTransaksi({ keepD1Id: sumber });
 
     const option =
         Array.from(select.options).find(
@@ -1430,10 +1461,27 @@ function formatDateForInput(dateStr) {
 
 function editData(jenis, id) {
     if (jenis === 'sppk') {
-        const data = storeData[jenis].find(d => d.id === id); if(!data) return;
-        if (data.status === 'Sudah PK') { showAlert('Akses Ditolak', 'SPPK ini sudah diterbitkan PK. Harap batalkan / hapus PK terlebih dahulu untuk mengubah data SPPK ini.', 'error'); return; }
-        document.getElementById('idSPPK').value = data.id; document.querySelector('#modal-sppk select[name="pilihCabang"]').value = storeData['cabang'].find(c=>c.kodePK===data.cabang)?.kodeSM+"|"+storeData['cabang'].find(c=>c.kodePK===data.cabang)?.kodePK; document.querySelector('#modal-sppk input[name="tanggalSPPK"]').value = data.tanggal; document.querySelector('#modal-sppk input[name="namaDebitur"]').value = data.debitur; document.querySelector('#modal-sppk input[name="plafon"]').value = formatRupiah(data.plafon.toString()); document.querySelector('#modal-sppk input[name="jangkaWaktu"]').value = data.jangkaWaktu; document.querySelector('#modal-sppk select[name="jenisKredit"]').value = data.jenisKredit;
-        document.getElementById('title-sppk').innerHTML='<i class="fa-solid fa-edit text-primary"></i> Edit SPPK'; openModal('modal-sppk');
+        const data = storeData[jenis].find(d => d.id === id);
+        if (!data) return;
+        if (data.status === 'Sudah PK') {
+            showAlert('Akses Ditolak', 'SPPK ini sudah diterbitkan PK. Harap batalkan / hapus PK terlebih dahulu untuk mengubah data SPPK ini.', 'error');
+            return;
+        }
+
+        document.getElementById('idSPPK').value = data.id;
+        const cabang = storeData['cabang'].find(c => c.kodePK === data.cabang);
+        const cabangEl = document.querySelector('#modal-sppk select[name="pilihCabang"]');
+        if (cabangEl && cabang) cabangEl.value = cabang.kodeSM + '|' + cabang.kodePK;
+        document.querySelector('#modal-sppk input[name="tanggalSPPK"]').value = formatDateForInput(data.tanggal);
+        document.querySelector('#modal-sppk input[name="namaDebitur"]').value = data.debitur || '';
+        document.querySelector('#modal-sppk input[name="plafon"]').value = formatRupiah(String(data.plafon || ''));
+        document.querySelector('#modal-sppk input[name="jangkaWaktu"]').value = data.jangkaWaktu || '';
+        document.querySelector('#modal-sppk select[name="jenisKredit"]').value = data.jenisKredit || '';
+        document.querySelector('#modal-sppk input[name="tujuanKredit"]').value = data.tujuanKredit || '';
+        refreshDropdownTransaksi({ keepD1Id: data.sumberD1Id || '' });
+        setSPPKSourceD1(data);
+        document.getElementById('title-sppk').innerHTML='<i class="fa-solid fa-edit text-primary"></i> Edit SPPK';
+        openModal('modal-sppk');
     } else if(jenis === 'surat-masuk') {
         const data = storeData[jenis].find(d => d.id === id); if(!data) return;
         document.getElementById('idSuratMasuk').value = data.id; document.querySelector('#modal-surat-masuk select[name="pilihCabang"]').value = storeData['cabang'].find(c=>c.kodeSM===data.cabang)?.kodeSM+"|"+storeData['cabang'].find(c=>c.kodeSM===data.cabang)?.kodePK; document.querySelector('#modal-surat-masuk input[name="tanggalSurat"]').value = data.tanggal; document.querySelector('#modal-surat-masuk select[name="jenisSurat"]').value = data.jenisSurat; toggleD1Fields();
@@ -1445,7 +1493,8 @@ function editData(jenis, id) {
         document.getElementById('title-sk').innerHTML='<i class="fa-solid fa-edit text-primary"></i> Edit Surat Keluar'; openModal('modal-surat-keluar');
     } else if (jenis === 'pk') {
         const data = storeData[jenis].find(d => d.id === id); if(!data) return;
-        document.getElementById('idPK').value = data.id; populatePKForm(); setTimeout(() => { document.querySelector('#modal-pk select[name="nomorSPPK"]').value = data.sppkInduk; document.getElementById('pk-nama-debitur').value = data.debitur; document.getElementById('pk-plafon').value = formatRupiah(data.plafon.toString()); document.querySelector('#modal-pk select[name="pilihCabang"]').value = storeData['cabang'].find(c=>c.kodePK===data.cabang)?.kodeSM+"|"+storeData['cabang'].find(c=>c.kodePK===data.cabang)?.kodePK; }, 500);
+        document.getElementById('idPK').value = data.id; populatePKForm(); setTimeout(() => { document.querySelector('#modal-pk select[name="nomorSPPK"]').value = data.sppkId || '';
+        document.querySelector('#modal-pk select[name="nomorSPPK"]').dispatchEvent(new Event('change')); document.getElementById('pk-nama-debitur').value = data.debitur; document.getElementById('pk-plafon').value = formatRupiah(data.plafon.toString()); document.querySelector('#modal-pk select[name="pilihCabang"]').value = storeData['cabang'].find(c=>c.kodePK===data.cabang)?.kodeSM+"|"+storeData['cabang'].find(c=>c.kodePK===data.cabang)?.kodePK; }, 500);
         document.getElementById('title-pk').innerHTML='<i class="fa-solid fa-edit text-primary"></i> Edit PK'; openModal('modal-pk');
     } else if (jenis === 'cabang') {
         const data = storeData['cabang'].find(d => d.id === id); if(!data) return;
@@ -1460,7 +1509,7 @@ function editData(jenis, id) {
         document.getElementById('usernameLogin').value = data.username; 
         document.getElementById('roleUser').value = data.role; 
         document.getElementById('jabatanUser').value = data.jabatan; 
-        document.getElementById('passwordUser').value = data.password || ''; // Isi dengan password lama
+        document.getElementById('passwordUser').value = ''; // Kosongkan; isi hanya jika password ingin diubah
         document.getElementById('title-user').innerHTML = '<i class="fa-solid fa-edit text-primary"></i> Edit User'; 
         openModal('modal-user');
     
@@ -1480,7 +1529,7 @@ async function deleteData(actionName, id, tableRef) {
     }
     if(!confirm("Yakin ingin memproses perintah ini?")) return;
     try { 
-        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: actionName, payload: { id: id } }) }); 
+        const response = await apiPost(actionName, { id: id }); 
         const result = await response.json(); 
         if (result.status === 'success') { 
             
@@ -1500,7 +1549,7 @@ const getBase64 = (file) => new Promise((resolve, reject) => { if (!file) return
 async function sendFormData(action, payload, formEl, modalId, jenisMenuRef) {
     const btn = formEl.querySelector('button[type="submit"]'); const originalBtnHTML = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...'; btn.disabled = true;
     try {
-        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: action, payload: payload }) }); const result = await response.json();
+        const result = await apiPost(action, payload);
         if (result.status === 'success') { 
             if(modalId) closeModal(modalId); 
             
@@ -1551,7 +1600,7 @@ async function submitIdentitas(e) {
     }
 
     try {
-        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveConfig', payload: payload }) });
+        const response = await apiPost('saveConfig', payload);
         const result = await response.json();
         if(result.status === 'success') {
             showAlert('Berhasil', 'Identitas Aplikasi & Logo berhasil diperbarui!', 'success');
@@ -1581,12 +1630,13 @@ async function submitSPPK(e) {
     const c =
         f.elements['pilihCabang'].value.split('|');
 
-    const sumberD1Id =
-        f.elements['sumberD1']
-            ? f.elements['sumberD1'].value
-            : document.getElementById(
-                'sppk-sumber-d1'
-            )?.value || '';
+    const sumberD1El = document.getElementById('sppk-sumber-d1');
+    const sumberD1Id = sumberD1El ? normalizeId(sumberD1El.value) : '';
+
+    if (!sumberD1Id) {
+        showToast('Data Belum Lengkap', 'Sumber D1 wajib dipilih.', 'error');
+        return;
+    }
 
     sendFormData(
         'upsertSPPK',
@@ -1655,10 +1705,9 @@ async function submitPK(e) {
     const c =
         f.elements['pilihCabang'].value.split('|');
 
-    const nomorSPPK =
-        f.elements['nomorSPPK'].value;
+    const sppkId = normalizeId(f.elements['nomorSPPK'].value);
 
-    if (!nomorSPPK) {
+    if (!sppkId) {
 
         showToast(
             'Data Belum Lengkap',
@@ -1670,12 +1719,8 @@ async function submitPK(e) {
     }
 
     // Pastikan SPPK benar-benar ada
-    const sppk =
-        (storeData['sppk'] || []).find(
-            s =>
-                getSPPKKey(s) ===
-                normalizeId(nomorSPPK)
-        );
+    const sppk = (storeData['sppk'] || []).find(s => normalizeId(s.id) === sppkId);
+    const nomorSPPK = sppk ? getSPPKKey(sppk) : '';
 
     if (!sppk) {
 
@@ -1696,6 +1741,9 @@ async function submitPK(e) {
 
             cabangPK:
                 c[1] || '',
+
+            sppkId:
+                sppkId,
 
             nomorSPPK:
                 nomorSPPK,
@@ -1762,16 +1810,11 @@ function populatePKForm() {
 
     select.onchange = function () {
 
-        const nomorSPPK =
-            normalizeId(this.value);
+        const sppkId = normalizeId(this.value);
+        if (!sppkId) return;
 
-        if (!nomorSPPK) return;
-
-        const dataSPPK =
-            (storeData['sppk'] || []).find(sppk => {
-
-                return getSPPKKey(sppk) === nomorSPPK;
-            });
+        const dataSPPK = (storeData['sppk'] || []).find(sppk => normalizeId(sppk.id) === sppkId);
+        const nomorSPPK = dataSPPK ? getSPPKKey(dataSPPK) : '';
 
         if (!dataSPPK) {
             console.warn(
@@ -1846,14 +1889,7 @@ function populatePKForm() {
     // REFERENSI PK
     // ==================================================
 
-    fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-            action: 'getReferensiPK'
-        })
-    })
-    .then(res => res.json())
-    .then(result => {
+    apiPost('getReferensiPK').then(result => {
 
         if (result.status !== 'success') {
             return;
@@ -1957,77 +1993,37 @@ function togglePassword() {
 // LOGIKA LOGIN TERBARU (OTENTIKASI DATABASE)
 // LOGIKA LOGIN TERBARU (OTENTIKASI KETAT DATABASE)
 async function handleLogin(e) {
-    e.preventDefault(); 
+    e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memverifikasi...';
     btn.disabled = true;
-
-    const inputUser = document.getElementById('login-username').value;
+    const inputUser = document.getElementById('login-username').value.trim().toUpperCase();
     const inputPass = document.getElementById('login-password').value;
 
     try {
-        // Tarik data User dari database untuk otentikasi
-        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getUser' }) });
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'authenticate', payload: { username: inputUser, password: inputPass } }) });
         const result = await res.json();
-        
-        if (result.status === 'success') {
-            globalDataUser = result.data;
-            const validUser = globalDataUser.find(u => u.username === inputUser);
-            
-            if (validUser) {
-                // KUNCI KEAMANAN: Membandingkan inputan dengan password asli dari database
-                if (inputPass === validUser.password) {
-                    
-                    currentUser = { username: validUser.username, role: validUser.role, nama: validUser.nama }; 
-                    document.getElementById('user-name').innerText = currentUser.username; 
-                    document.getElementById('user-role').innerText = currentUser.role; 
-                    
-                    // Filter tampilan berdasarkan Role
-                    if(currentUser.role !== 'Admin') document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none'); 
-                    else document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
-
-                    // 1. TUTUP LAYAR LOGIN & BUKA LAYAR UTAMA
-                    document.getElementById('login-screen').classList.add('hidden'); 
-                    document.getElementById('main-screen').classList.remove('hidden'); 
-                    
-                    // 2. JALANKAN MESIN SPLASH SCREEN!
-                    // Mesin ini akan menutupi layar utama sementara waktu untuk menarik semua data
-                    prefetchAllDatabase();
-                    
-                    // 3. Tampilkan notifikasi elegan
-                    showToast('Otentikasi Berhasil', `Selamat datang kembali, ${currentUser.nama}!`, 'success');
-                    
-                    // Tarik data referensi Jenis Surat di latar belakang (Data Cabang sudah dihandle Splash Screen)
-                    fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getJenisSurat' }) })
-                        .then(r => r.json())
-                        .then(resJ => { 
-                            if(resJ.status === 'success') { 
-                                let ops = '<option value="">Pilih Jenis Surat...</option>'; 
-                                resJ.data.forEach(j => ops += `<option value="${j.kode}">${j.kode} - ${j.nama}</option>`); 
-                                if(document.getElementById('select-jenis-sm')) document.getElementById('select-jenis-sm').innerHTML = ops; 
-                                if(document.getElementById('select-jenis-sk')) document.getElementById('select-jenis-sk').innerHTML = ops; 
-                            } 
-                        });
-
-                } else {
-                    showToast('Akses Ditolak', 'Password yang Anda masukkan salah.', 'error');
-                }
-            } else {
-                showToast('Akses Ditolak', 'Username tidak terdaftar di sistem.', 'error');
-            }
-        }
+        if (result.status !== 'success' || !result.data) throw new Error(result.message || 'Autentikasi gagal.');
+        currentUser = result.data;
+        if (!currentUser.authToken) throw new Error('Token sesi tidak diterima dari server.');
+        sessionStorage.setItem('bankaltimtara_auth_token', currentUser.authToken);
+        document.getElementById('user-name').innerText = currentUser.username;
+        document.getElementById('user-role').innerText = currentUser.role;
+        if(currentUser.role !== 'Admin') document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+        else document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('main-screen').classList.remove('hidden');
+        prefetchAllDatabase();
+        showToast('Otentikasi Berhasil', `Selamat datang kembali, ${currentUser.nama}!`, 'success');
     } catch (error) {
-        showToast('Koneksi Gagal', 'Tidak dapat menghubungi server verifikasi.', 'error');
+        showToast('Akses Ditolak', error.message || 'Username atau password salah.', 'error');
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
 }
 
-// ========================================================
-// --- FUNGSI RENDER POPUP DETAIL ULTRA MODERN ---
-// ========================================================
 function viewDetail(jenis, id) {
     let targetJenis = jenis === 'disposisi' ? 'surat-masuk' : jenis;
     const data = storeData[targetJenis].find(d => d.id === id);
@@ -2331,7 +2327,7 @@ async function prosesUploadArsip() {
             }
         };
 
-        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(requestData) });
+        const response = await apiPost(requestData.action, requestData.payload);
         const result = await response.json();
 
         if (result.status === 'success') {
@@ -2492,7 +2488,16 @@ function cetakLaporanPDF() {
 }
 
 
-function handleLogout() { currentUser = null; document.getElementById('main-screen').classList.add('hidden'); document.getElementById('login-screen').classList.remove('hidden'); document.getElementById('login-form').reset(); document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex'); }
+async function handleLogout() {
+    const token = getAuthToken();
+    try { if (token) await apiPost('logout', { authToken: token }); } catch (e) { /* tetap logout lokal */ }
+    sessionStorage.removeItem('bankaltimtara_auth_token');
+    currentUser = null;
+    document.getElementById('main-screen').classList.add('hidden');
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('login-form').reset();
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
+}
 window.onload = () => { if (document.getElementById('theme-icon')) document.getElementById('theme-icon').className = currentTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'; };
 
 // SWIPE DOWN TO CLOSE MODAL (HP)
