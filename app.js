@@ -451,11 +451,11 @@ function refreshDropdownTransaksi() {
             const d1Tersedia = storeData['surat-masuk'].filter(sm => {
                 if (!sm) return false;
                 const namaSM = String(sm.pengirim).toLowerCase().trim();
-                const isBelumDiproses = sm.status !== 'Selesai Diproses'; // Cek Status
-                const isBelumAdaDiSPPK = !debiturSudahSPPK.includes(namaSM); // Pengecekan Fisik Ekstra
+                const isBelumDiproses = sm.status !== 'SPPK Diterbitkan'; // Cek Status
+              
                 
                 // Hanya loloskan jika: Jenis D1 AND Belum Diproses AND Belum punya SPPK
-                return sm.jenisSurat === 'D1' && isBelumDiproses && isBelumAdaDiSPPK;
+                return sm.jenisSurat === 'D1' && isBelumDiproses;
             });
             
             let htmlD1 = '<option value="">-- Manual / Pilih Sumber (D1) --</option>';
