@@ -71,7 +71,7 @@ async function prefetchAllDatabase() {
     }
 }
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbygoan29D_f8a6txaY2R9AeeoFY9ccPPszzVcNDAfccMcO05D4621E8fwPL-NWxDZnVfA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwKX8oMQEVHmDm-4utRBxTXotcFKpwlwvEdvm6Gaf7_fOjAZWv6-xpSzeHaJ69LIpH59A/exec';
 
 let currentUser = null; 
 let currentPage = {};
