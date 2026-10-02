@@ -41,77 +41,7 @@
     <div id="modal-surat-masuk" class="modal-overlay hidden"><div class="modal-card modal-form"><h3 id="title-sm"><i class="fa-solid fa-inbox text-primary"></i> Tambah Surat Masuk</h3><form onsubmit="submitSuratMasuk(event)"><input type="hidden" name="idSuratMasuk" id="idSuratMasuk"><div class="form-grid"><div class="input-group"><label>Cabang</label><select name="pilihCabang" class="sel-cabang-global" required></select></div><div class="input-group"><label>Tanggal Surat</label><input type="date" name="tanggalSurat" required></div></div><div class="form-grid"><div class="input-group"><label>Jenis Surat</label><select name="jenisSurat" id="select-jenis-sm" onchange="toggleD1Fields()" required></select></div><div class="input-group"><label>Sifat Surat</label><select name="sifatSurat" required><option value="Biasa">Biasa</option><option value="Penting">Penting</option><option value="Rahasia">Rahasia</option></select></div></div><div id="sm-normal-fields"><div class="input-group"><label>Pengirim</label><input type="text" name="pengirim" id="sm-pengirim" placeholder="Instansi/Perusahaan Pengirim"></div><div class="input-group"><label>Perihal</label><input type="text" name="perihal" id="sm-perihal" placeholder="Ringkasan isi surat..."></div></div><div id="sm-d1-fields" class="hidden" style="background:var(--primary-light); padding:15px; border-radius:var(--radius-md); margin-bottom:15px; border-left: 4px solid var(--primary);"><h4 style="margin-bottom:10px; color:var(--primary);"><i class="fa-solid fa-user-check"></i> Pengajuan Kredit (D1)</h4><div class="input-group"><label>Nama Debitur</label><input type="text" name="namaDebiturD1" id="sm-nama-debitur" placeholder="Nama Lengkap Pemohon"></div><div class="form-grid"><div class="input-group"><label>Plafond (Rp)</label><input type="number" name="plafonD1" id="sm-plafon"></div><div class="input-group"><label>Tenor (Bulan)</label><input type="number" name="jangkaWaktuD1" id="sm-jangkawaktu"></div></div><div class="input-group"><label>Jenis Kredit</label><select name="jenisKreditD1" id="sm-jeniskredit"><option value="Kredit Modal Kerja">Kredit Modal Kerja (KMK)</option><option value="Kredit Investasi">Kredit Investasi (KI)</option><option value="Kredit Konsumtif">Kredit Konsumtif</option></select></div></div><div class="input-group full-width" style="margin-top: 10px;"><label>Unggah Berkas Dokumen (PDF)</label><div class="file-drop-area"><span class="file-msg"><i class="fa-solid fa-cloud-arrow-up"></i> Klik atau Seret File PDF Anda ke Sini</span><input type="file" name="fileUpload" accept="application/pdf" class="file-input-modern"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('modal-surat-masuk')">Batal</button><button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Simpan Data</button></div></form></div></div>
     <div id="modal-disposisi" class="modal-overlay hidden"><div class="modal-card modal-form"><h3 id="title-disposisi"><i class="fa-solid fa-share-nodes text-primary"></i> Disposisi Surat ke Staf</h3><form onsubmit="submitDisposisi(event)"><input type="hidden" name="idSuratDisposisi" id="idSuratDisposisi"><div class="input-group"><label>Pilih Staf Penerima</label><select name="stafPenerima" id="disposisi-staf" required></select></div><div class="input-group"><label>Pesan / Instruksi Tugas</label><input type="text" name="pesanDisposisi" required placeholder="Cth: Segera tindaklanjuti dan balas surat ini"></div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('modal-disposisi')">Batal</button><button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Kirim Tugas</button></div></form></div></div>
     <div id="modal-surat-keluar" class="modal-overlay hidden"><div class="modal-card modal-form"><h3 id="title-sk"><i class="fa-solid fa-paper-plane text-success"></i> Surat Keluar</h3><form onsubmit="submitSuratKeluar(event)"><input type="hidden" name="idSuratKeluar" id="idSuratKeluar"><div class="form-grid"><div class="input-group"><label>Cabang</label><select name="pilihCabang" class="sel-cabang-global" required></select></div><div class="input-group"><label>Jenis Surat</label><select name="jenisSurat" id="select-jenis-sk" required></select></div></div><div class="input-group"><label>Tujuan</label><input type="text" name="tujuan" required></div><div class="input-group"><label>Perihal</label><input type="text" name="perihal" required></div><div class="form-grid"><div class="input-group"><label>Penandatangan</label><select name="penandatangan" required><option value="Direktur Utama">Direktur Utama</option><option value="Manager Operasional">Manager Operasional</option></select></div><div class="input-group"><label>Sifat</label><select name="sifat" required><option value="Biasa">Biasa</option><option value="Segera">Segera</option></select></div></div><div class="input-group full-width" style="margin-top: 10px;"><label>Unggah Berkas Dokumen (PDF)</label><div class="file-drop-area"><span class="file-msg"><i class="fa-solid fa-cloud-arrow-up"></i> Klik atau Seret File PDF Anda ke Sini</span><input type="file" name="fileUpload" accept="application/pdf" class="file-input-modern"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('modal-surat-keluar')">Batal</button><button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Generate & Simpan</button></div></form></div></div>
-    <div id="modal-sppk" class="modal-overlay hidden">
-  <div class="modal-card modal-form">
-    <h3 id="title-sppk"><i class="fa-solid fa-file-contract text-primary"></i> Data SPPK</h3>
-    <form onsubmit="submitSPPK(event)">
-      <input type="hidden" name="idSPPK" id="idSPPK">
-      
-      <div class="form-grid">
-        <div class="input-group">
-          <label>Cabang</label>
-          <select name="pilihCabang" id="sppk-cabang" class="sel-cabang-global" required></select>
-        </div>
-        <div class="input-group">
-          <label>Sumber (D1)</label>
-          <select id="sppk-sumber-d1" onchange="autofillSPPK()">
-            <option value="">-- Manual / Pilih Sumber (D1) --</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-grid">
-        <div class="input-group">
-          <label>Nama Debitur</label>
-          <input type="text" name="namaDebitur" id="sppk-debitur" required>
-        </div>
-        <div class="input-group">
-          <label>Tanggal SPPK</label>
-          <input type="date" name="tanggalSPPK" id="sppk-tanggal" required>
-        </div>
-      </div>
-
-      <div class="form-grid">
-        <div class="input-group">
-          <label>Nilai Plafon (Rp)</label>
-          <input type="text" inputmode="numeric" name="plafon" id="sppk-plafon" placeholder="Rp 0" required>
-        </div>
-        <div class="input-group">
-          <label>Jangka Waktu (Bulan)</label>
-          <input type="number" name="jangkaWaktu" id="sppk-jangkawaktu" min="1" required>
-        </div>
-      </div>
-
-      <div class="form-grid">
-        <div class="input-group">
-          <label>Jenis Kredit</label>
-          <select name="jenisKredit" id="sppk-jeniskredit" required>
-            <option value="Kredit Modal Kerja">Kredit Modal Kerja (KMK)</option>
-            <option value="Kredit Investasi">Kredit Investasi (KI)</option>
-            <option value="Kredit Konsumtif">Kredit Konsumtif</option>
-          </select>
-        </div>
-        <div class="input-group">
-          <label>Tujuan Kredit</label>
-          <input type="text" name="tujuanKredit" id="sppk-tujuan" required>
-        </div>
-      </div>
-
-      <div class="input-group full-width" style="margin-top: 10px;">
-        <label>Unggah Berkas Dokumen (PDF)</label>
-        <div class="file-drop-area">
-          <span class="file-msg"><i class="fa-solid fa-cloud-arrow-up"></i> Klik atau Seret File PDF Anda ke Sini</span>
-          <input type="file" name="fileUpload" accept="application/pdf" class="file-input-modern">
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline" onclick="closeModal('modal-sppk')">Batal</button>
-        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Simpan SPPK</button>
-      </div>
-    </form>
-  </div>
-</div>
+    <div id="modal-sppk" class="modal-overlay hidden"><div class="modal-card modal-form"><h3 id="title-sppk"><i class="fa-solid fa-file-contract text-primary"></i> Data SPPK</h3><form onsubmit="submitSPPK(event)"><input type="hidden" name="idSPPK" id="idSPPK"><div class="form-grid"><div class="input-group"><label>Cabang</label><select name="pilihCabang" class="sel-cabang-global" required></select></div><div class="input-group"><label>Sumber (D1)</label><select id="sppk-sumber-d1" onchange="autofillSPPK()"><option value="">-- Manual / Pilih --</option></select></div></div><div class="form-grid"><div class="input-group"><label>Nama Debitur</label><input type="text" name="namaDebitur" id="sppk-debitur" required></div><div class="input-group"><label>Tanggal SPPK</label><input type="date" name="tanggalSPPK" required></div></div><div class="form-grid"><div class="input-group"><label>Nilai Plafon (Rp)</label><input type="number" name="plafon" id="sppk-plafon" required></div><div class="input-group"><label>Jangka Waktu</label><input type="number" name="jangkaWaktu" id="sppk-jangkawaktu" required></div></div><div class="form-grid"><div class="input-group"><label>Jenis Kredit</label><select name="jenisKredit" id="sppk-jeniskredit" required><option value="Kredit Modal Kerja">Kredit Modal Kerja (KMK)</option><option value="Kredit Investasi">Kredit Investasi (KI)</option><option value="Kredit Konsumtif">Kredit Konsumtif</option></select></div><div class="input-group"><label>Tujuan Kredit</label><input type="text" name="tujuanKredit" required></div></div><div class="input-group full-width" style="margin-top: 10px;"><label>Unggah Berkas Dokumen (PDF)</label><div class="file-drop-area"><span class="file-msg"><i class="fa-solid fa-cloud-arrow-up"></i> Klik atau Seret File PDF Anda ke Sini</span><input type="file" name="fileUpload" accept="application/pdf" class="file-input-modern"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('modal-sppk')">Batal</button><button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Simpan SPPK</button></div></form></div></div>
     <div id="modal-pk" class="modal-overlay hidden"><div class="modal-card modal-form" style="max-width: 800px !important;"><h3 id="title-pk"><i class="fa-solid fa-file-signature text-orange"></i> Terbitkan PK Baru</h3><form onsubmit="submitPK(event)"><input type="hidden" name="idPK" id="idPK"><div class="form-grid"><div class="input-group"><label>Cabang</label><select name="pilihCabang" id="pk-cabang" class="sel-cabang-global" required></select></div><div class="input-group"><label>No. SPPK Induk</label><select name="nomorSPPK" id="select-sppk-induk" required><option value="">Pilih SPPK...</option></select></div></div><div class="form-grid"><div class="input-group"><label>Nama Debitur (Auto)</label><input type="text" name="namaDebitur" id="pk-nama-debitur" required readonly style="background:var(--bg-main); opacity:0.8;"></div><div class="input-group"><label>Nilai Plafon (Rp) (Auto)</label><input type="number" name="plafon" id="pk-plafon" required readonly style="background:var(--bg-main); opacity:0.8;"></div></div><div class="input-group"><label>Tanggal PK</label><input type="date" name="tanggalPK" required></div><h4 style="margin:15px 0 10px; border-bottom:1px dashed var(--border-color); color:var(--primary); font-size:0.95rem;">Komponen Nomor PK</h4><div class="form-grid"><div class="input-group"><label>Golongan Debitur</label><select name="golDebitur" id="sel-goldebitur" required></select></div><div class="input-group"><label>Jenis Penggunaan</label><select name="jnsPenggunaan" id="sel-jnspenggunaan" required></select></div><div class="input-group"><label>Klasifikasi Kredit</label><select name="klasKredit" id="sel-klaskredit" required></select></div><div class="input-group"><label>Sektor Ekonomi</label><select name="sektorEko" id="sel-sektoreko" required></select></div></div><div class="input-group full-width" style="margin-top: 10px;"><label>Unggah Berkas Dokumen (PDF)</label><div class="file-drop-area"><span class="file-msg"><i class="fa-solid fa-cloud-arrow-up"></i> Klik atau Seret File PDF Anda ke Sini</span><input type="file" name="fileUpload" accept="application/pdf" class="file-input-modern"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline" onclick="closeModal('modal-pk')">Batal</button><button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Generate Nomor PK</button></div></form></div></div>
     
     <!-- MODAL DETAIL ULTRA MODERN -->
