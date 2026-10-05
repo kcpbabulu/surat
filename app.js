@@ -19,7 +19,7 @@ async function prefetchAllDatabase() {
         if (text) text.innerText = 'Mengunduh referensi cabang & identitas...';
         if (progress) progress.style.width = '15%';
 
-        await loadDataTabel('cabang');
+        await Promise.all([loadDataTabel('cabang'), loadDataTabel('jenis-surat')]);
 
         // ==================================================
         // 2. DATA SURAT
@@ -259,6 +259,34 @@ function showAlert(title, message, type) {
     else if(type === 'error') icon.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger"></i>'; 
     else icon.innerHTML = '<i class="fa-solid fa-circle-info text-info"></i>';
     document.getElementById('custom-alert').classList.remove('hidden');
+}
+
+function populateJenisSuratDropdowns(data) {
+    const sourceRows = Array.isArray(data) ? data : (Array.isArray(globalDataJenisSurat) ? globalDataJenisSurat : []);
+    const rows = sourceRows
+        .filter(item => item && String(item.kode || '').trim() && String(item.nama || '').trim())
+        .slice()
+        .sort((a, b) => String(a.kode).localeCompare(String(b.kode), 'id', { numeric: true, sensitivity: 'base' }));
+    const selects = [
+        { id: 'select-jenis-sm', placeholder: '-- Pilih Jenis Surat --' },
+        { id: 'select-jenis-sk', placeholder: '-- Pilih Jenis Surat --' }
+    ];
+    selects.forEach(({ id, placeholder }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const previousValue = el.value;
+        const options = [`<option value="">${placeholder}</option>`];
+        rows.forEach(item => {
+            if (!item || item.kode == null) return;
+            const code = String(item.kode).trim();
+            const name = String(item.nama || '').trim();
+            const safeCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const safeName = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            options.push(`<option value="${safeCode}">${safeCode} - ${safeName}</option>`);
+        });
+        el.innerHTML = options.join('');
+        if (rows.some(item => String(item.kode).trim() === previousValue)) el.value = previousValue;
+    });
 }
 
 function toggleD1Fields() {
@@ -523,6 +551,10 @@ async function loadDataTabel(jenis) {
         const result = await apiPost(act);
         
         if (result.status === 'success') {
+            if (jenis === 'jenis-surat') {
+                globalDataJenisSurat = Array.isArray(result.data) ? result.data : [];
+                populateJenisSuratDropdowns(globalDataJenisSurat);
+            }
             
             // 2. PERBAIKAN: Memasukkan 'arsip-kredit' ke dalam antrean Omnisearch
             if(['surat-masuk','surat-keluar','sppk','pk','arsip','cabang','disposisi','arsip-kredit'].includes(jenis)) {
@@ -1002,7 +1034,7 @@ function renderHTMLTabel(jenis, dataArray, tbody) {
     }
     
     let html = '';
-    if(jenis === 'jenis-surat') globalDataJenisSurat = [...dataArray]; 
+    if(jenis === 'jenis-surat') { globalDataJenisSurat = [...dataArray]; populateJenisSuratDropdowns(globalDataJenisSurat); } 
     if(jenis === 'user') globalDataUser = [...dataArray]; 
     if(jenis === 'referensi-pk') globalDataRefPK = [...dataArray];
 
@@ -1228,8 +1260,8 @@ function openModalUser() {
 
    
 function openModalReferensiPK() { document.getElementById('idRefPK').value = ''; document.getElementById('kodeRefPK').value = ''; document.getElementById('descRefPK').value = ''; document.getElementById('title-referensi-pk').innerHTML = '<i class="fa-solid fa-list text-primary"></i> Tambah Referensi PK'; openModal('modal-referensi-pk'); }
-function openModalSM() { document.getElementById('idSuratMasuk').value=''; document.getElementById('title-sm').innerHTML='<i class="fa-solid fa-inbox text-primary"></i> Tambah Surat Masuk'; toggleD1Fields(); openModal('modal-surat-masuk'); }
-function openModalSK() { document.getElementById('idSuratKeluar').value=''; document.getElementById('title-sk').innerHTML='<i class="fa-solid fa-paper-plane text-success"></i> Buat Surat Keluar'; openModal('modal-surat-keluar'); }
+function openModalSM() { populateJenisSuratDropdowns(globalDataJenisSurat); document.getElementById('idSuratMasuk').value=''; document.getElementById('title-sm').innerHTML='<i class="fa-solid fa-inbox text-primary"></i> Tambah Surat Masuk'; toggleD1Fields(); openModal('modal-surat-masuk'); }
+function openModalSK() { populateJenisSuratDropdowns(globalDataJenisSurat); document.getElementById('idSuratKeluar').value=''; document.getElementById('title-sk').innerHTML='<i class="fa-solid fa-paper-plane text-success"></i> Buat Surat Keluar'; openModal('modal-surat-keluar'); }
 function openModalSPPK() {
 
     // ==================================================
