@@ -308,19 +308,31 @@ function toggleD1Fields() {
 // ========================================================
 function navigate(page, evt) {
     document.getElementById('sidebar').classList.remove('open'); document.body.classList.remove('sidebar-open'); 
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active')); 
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     const navEvent = evt || window.event;
-    if (navEvent && navEvent.currentTarget) navEvent.currentTarget.classList.add('active');
+    const clickedNav = (navEvent && navEvent.currentTarget && navEvent.currentTarget.classList.contains('nav-item'))
+        ? navEvent.currentTarget
+        : Array.from(document.querySelectorAll('.nav-item')).find(el => (el.getAttribute('onclick') || '').includes(`'${page}'`));
+    if (clickedNav) clickedNav.classList.add('active');
     
-    // PERBAIKAN 1: Tambahkan 'arsip-kredit' ke daftar penyembunyi layar
-    ['dashboard', 'surat-masuk', 'surat-keluar', 'disposisi', 'sppk', 'pk', 'arsip', 'arsip-kredit', 'laporan', 'pengaturan'].forEach(v => { 
-        const el = document.getElementById(`view-${v}`); 
-        if(el) el.classList.add('hidden'); 
+    // Sinkronkan status hidden dan active. CSS .view-section hanya menampilkan
+    // halaman yang memiliki class active; sebelumnya class ini tidak pernah diganti.
+    document.querySelectorAll('.view-section').forEach(el => {
+        el.classList.remove('active');
+        el.classList.add('hidden');
+        el.setAttribute('aria-hidden', 'true');
     });
-    
-    // Tampilkan layar yang dituju
-    const targetEl = document.getElementById(`view-${page}`); 
-    if(targetEl) targetEl.classList.remove('hidden');
+
+    const targetEl = document.getElementById(`view-${page}`);
+    if (targetEl) {
+        targetEl.classList.remove('hidden');
+        targetEl.classList.add('active');
+        targetEl.setAttribute('aria-hidden', 'false');
+    } else {
+        console.error('Halaman tidak ditemukan:', page);
+        showToast('Menu tidak tersedia', `Halaman "${page}" tidak ditemukan.`, 'error');
+        return;
+    }
 
     // Pemicu aksi otomatis saat halaman dibuka
     if (page === 'dashboard') loadDashboardStats();
