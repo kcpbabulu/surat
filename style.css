@@ -516,3 +516,119 @@ input[type="text"].search-input { flex: 2; min-width: 220px; cursor: text; }
 @media (prefers-reduced-motion: reduce) {
   .view-section.active { animation: none; }
 }
+
+
+
+/* ============================================================
+   SUPERAPP UX REFINEMENT v2 — consistent PC / tablet / mobile
+   ============================================================ */
+:root {
+  --border-color: var(--border, #e3eaf2);
+  --text-primary: var(--text-main, #1c2b3e);
+  --bg-main: var(--bg-body, #f3f6fb);
+  --surface-muted: #f7f9fc;
+  --content-max: 1600px;
+}
+html { scroll-padding-top: calc(var(--topbar-height, 76px) + 12px); }
+body { overflow-x: hidden; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(8,121,217,.28); outline-offset: 2px; }
+.main-content { min-width: 0; }
+.content-area { width: 100%; max-width: var(--content-max); margin-inline: auto; min-width: 0; }
+.view-section { min-width: 0; width: 100%; }
+.view-section > .card, .view-section > .table-card, .view-section > .config-card { margin-bottom: 22px; }
+.section-header { align-items: center; margin-bottom: 20px; }
+.section-header h2 { font-size: clamp(1.15rem, 1.4vw, 1.55rem); line-height: 1.3; }
+.section-header p { max-width: 70ch; margin-top: 6px; }
+.card, .table-card, .config-card { border-radius: 18px; }
+.card-header { gap: 12px; min-height: 62px; padding: 16px 20px; }
+.card-body { min-width: 0; padding: 18px 20px; }
+.btn { min-height: 42px; border-radius: 11px; }
+.btn-icon { min-width: 36px; min-height: 36px; border-radius: 10px; }
+.filter-container { display: grid; grid-template-columns: minmax(240px, 1.6fr) repeat(2, minmax(150px, .85fr)); align-items: center; gap: 10px; width: 100%; margin: 0 0 18px; padding: 10px; background: var(--bg-card, #fff); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: var(--shadow-sm); overflow: visible; }
+.filter-container input, .filter-container select, .filter-container .search-input { width: 100%; min-width: 0; min-height: 42px; margin: 0; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--surface-muted); color: var(--text-primary); }
+.table-container, .table-responsive { width: 100%; max-width: 100%; min-width: 0; overflow-x: auto; overflow-y: visible; padding: 0; border-radius: 14px; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.modern-table { width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0; table-layout: auto; font-size: .86rem; }
+.modern-table thead { display: table-header-group; }
+.modern-table thead th { position: sticky; top: 0; z-index: 2; padding: 13px 15px !important; background: #f3f7fc !important; color: #60748b !important; border: 0 !important; border-bottom: 1px solid var(--border-color) !important; font-size: .72rem !important; font-weight: 900 !important; letter-spacing: .045em !important; text-align: left; white-space: nowrap; }
+.modern-table tbody tr { display: table-row; margin: 0; padding: 0; background: transparent; box-shadow: none; }
+.modern-table tbody td { display: table-cell; position: static; padding: 13px 15px !important; background: var(--bg-card, #fff) !important; color: var(--text-primary) !important; border: 0 !important; border-bottom: 1px solid #edf1f6 !important; border-radius: 0 !important; vertical-align: middle; line-height: 1.45; overflow-wrap: anywhere; white-space: normal; transform: none !important; box-shadow: none !important; }
+.modern-table tbody tr:hover td { background: #f8fbff !important; color: var(--text-primary) !important; transform: none !important; box-shadow: none !important; }
+.modern-table tbody tr:last-child td { border-bottom: 0 !important; }
+.modern-table td .badge { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.modern-table td .btn-icon { margin: 2px; }
+.pagination-container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 4px 4px; margin-top: 8px; border-top: 1px solid var(--border-color); }
+.empty-state { margin: 12px 0; padding: 30px 18px; border: 1px dashed var(--border-color); border-radius: 14px; background: var(--surface-muted); text-align: center; }
+.empty-state img { width: 58px; height: 58px; object-fit: contain; }
+.input-group { min-width: 0; }
+.input-group input, .input-group select, .input-group textarea { width: 100%; max-width: 100%; }
+.modal-card { max-width: min(760px, calc(100vw - 32px)); }
+
+/* Credit archive: tidy aligned columns, no detached gray stripes, no overlapping cells. */
+#view-arsip-kredit .section-header { padding: 2px 0; }
+#view-arsip-kredit .section-header > div { min-width: 0; }
+#view-arsip-kredit .section-header .btn { flex-shrink: 0; }
+#view-arsip-kredit .filter-container { grid-template-columns: minmax(260px, 1.5fr) minmax(170px, .8fr) minmax(170px, .8fr); }
+#view-arsip-kredit .table-container { padding: 0; overflow-x: auto; border: 1px solid var(--border-color); background: var(--bg-card, #fff); box-shadow: var(--shadow-sm); }
+#view-arsip-kredit .modern-table { min-width: 1120px; table-layout: fixed; }
+#view-arsip-kredit .modern-table th:nth-child(1), #view-arsip-kredit .modern-table td:nth-child(1) { width: 95px; }
+#view-arsip-kredit .modern-table th:nth-child(2), #view-arsip-kredit .modern-table td:nth-child(2) { width: 145px; }
+#view-arsip-kredit .modern-table th:nth-child(3), #view-arsip-kredit .modern-table td:nth-child(3) { width: 190px; }
+#view-arsip-kredit .modern-table th:nth-child(4), #view-arsip-kredit .modern-table td:nth-child(4) { width: 275px; }
+#view-arsip-kredit .modern-table th:nth-child(5), #view-arsip-kredit .modern-table td:nth-child(5) { width: 220px; }
+#view-arsip-kredit .modern-table th:nth-child(6), #view-arsip-kredit .modern-table td:nth-child(6) { width: 105px; }
+#view-arsip-kredit .modern-table th:nth-child(7), #view-arsip-kredit .modern-table td:nth-child(7) { width: 155px; text-align: right; }
+#view-arsip-kredit .modern-table td:nth-child(1) { color: var(--primary) !important; font-weight: 900; }
+#view-arsip-kredit .modern-table td:nth-child(2) .badge { display: inline-flex; font-size: .74rem; }
+#view-arsip-kredit .modern-table td:nth-child(3) { font-weight: 800; }
+#view-arsip-kredit .modern-table td:nth-child(6) .badge { white-space: nowrap; padding: 5px 9px; }
+#view-arsip-kredit .modern-table td:nth-child(7) { white-space: nowrap; font-weight: 900; font-variant-numeric: tabular-nums; }
+#view-arsip-kredit .modern-table .pc-only { display: table-cell !important; }
+
+/* Dark theme aliases and table contrast */
+html[data-theme="dark"] { --surface-muted: #101d2f; }
+html[data-theme="dark"] .modern-table thead th { background: #101d2f !important; color: #a9bad0 !important; border-bottom-color: var(--border-color) !important; }
+html[data-theme="dark"] .modern-table tbody td { background: var(--bg-card, #172438) !important; color: var(--text-primary, #e8eff8) !important; border-bottom-color: var(--border-color) !important; }
+html[data-theme="dark"] .modern-table tbody tr:hover td { background: #1d3048 !important; }
+html[data-theme="dark"] .filter-container { background: var(--bg-card); border-color: var(--border-color); }
+
+@media (max-width: 1100px) {
+  .content-area { padding-inline: 18px; }
+  .filter-container, #view-arsip-kredit .filter-container { grid-template-columns: minmax(0, 1fr) minmax(145px, .7fr); }
+  .filter-container .search-input, #view-arsip-kredit .filter-container input { grid-column: 1 / -1; }
+  .dashboard-widgets { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .content-area { padding: 15px 12px calc(88px + env(safe-area-inset-bottom)); }
+  .section-header { align-items: flex-start; gap: 12px; }
+  .section-header > div { flex: 1 1 100%; }
+  .section-header .btn { width: 100%; }
+  .card-header { padding: 14px; }
+  .card-body { padding: 13px; }
+  .filter-container, #view-arsip-kredit .filter-container { display: grid; grid-template-columns: minmax(0, 1fr); padding: 10px; gap: 9px; border-radius: 14px; overflow: visible; }
+  .filter-container input, .filter-container select, .filter-container .search-input { width: 100% !important; min-width: 0; min-height: 46px; grid-column: auto !important; }
+  /* Preserve every credit field on phones: horizontal scrolling is safer than hiding columns. */
+  #view-arsip-kredit .table-container { overflow-x: auto !important; border-radius: 12px; }
+  #view-arsip-kredit .modern-table { min-width: 1050px !important; }
+  #view-arsip-kredit .modern-table thead { display: table-header-group !important; }
+  #view-arsip-kredit .modern-table tbody tr { display: table-row !important; padding: 0 !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; }
+  #view-arsip-kredit .modern-table tbody td { display: table-cell !important; position: static !important; width: auto; padding: 12px !important; border-radius: 0 !important; }
+  #view-arsip-kredit .modern-table .pc-only { display: table-cell !important; }
+  .pagination-container { align-items: stretch; flex-direction: column; }
+  .pagination-container > div { display: flex; flex-wrap: wrap; }
+  .modal-overlay { padding: 0; }
+  .modal-card { max-width: 100%; width: 100%; }
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .modal-footer { gap: 8px; }
+  .modal-footer .btn { min-width: 0; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 390px) {
+  .content-area { padding-inline: 9px; }
+  .stats-grid { gap: 8px; }
+  .stat-card { min-width: 0; }
+  .modern-table { font-size: .82rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
