@@ -248,7 +248,7 @@ function toggleTheme() {
     document.getElementById('theme-icon').className = currentTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'; 
 }
 
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+function toggleSidebar() { const sidebar = document.getElementById('sidebar'); sidebar.classList.toggle('open'); document.body.classList.toggle('sidebar-open', sidebar.classList.contains('open')); }
 function closeAlert() { document.getElementById('custom-alert').classList.add('hidden'); }
 function openModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
 function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
@@ -307,7 +307,7 @@ function toggleD1Fields() {
 // --- MESIN NAVIGASI & ROUTING HALAMAN ---
 // ========================================================
 function navigate(page, evt) {
-    document.getElementById('sidebar').classList.remove('open'); 
+    document.getElementById('sidebar').classList.remove('open'); document.body.classList.remove('sidebar-open'); 
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active')); 
     const navEvent = evt || window.event;
     if (navEvent && navEvent.currentTarget) navEvent.currentTarget.classList.add('active');
