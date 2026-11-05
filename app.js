@@ -1502,7 +1502,7 @@ function formatDateForInput(dateStr) {
     return dateStr;
 }
 
-function editData(jenis, id) {
+async function editData(jenis, id) {
     if (jenis === 'sppk') {
         const data = storeData[jenis].find(d => d.id === id);
         if (!data) return;
@@ -1535,10 +1535,51 @@ function editData(jenis, id) {
         document.getElementById('idSuratKeluar').value = data.id; document.querySelector('#modal-surat-keluar select[name="pilihCabang"]').value = storeData['cabang'].find(c=>c.kodeSM===data.cabang)?.kodeSM+"|"+storeData['cabang'].find(c=>c.kodeSM===data.cabang)?.kodePK; document.querySelector('#modal-surat-keluar select[name="jenisSurat"]').value = data.jenisSurat; document.querySelector('#modal-surat-keluar input[name="tujuan"]').value = data.tujuan; document.querySelector('#modal-surat-keluar input[name="perihal"]').value = data.perihal;
         document.getElementById('title-sk').innerHTML='<i class="fa-solid fa-edit text-primary"></i> Edit Surat Keluar'; openModal('modal-surat-keluar');
     } else if (jenis === 'pk') {
-        const data = storeData[jenis].find(d => d.id === id); if(!data) return;
-        document.getElementById('idPK').value = data.id; populatePKForm(); setTimeout(() => { document.querySelector('#modal-pk select[name="nomorSPPK"]').value = data.sppkId || '';
-        document.querySelector('#modal-pk select[name="nomorSPPK"]').dispatchEvent(new Event('change')); document.getElementById('pk-nama-debitur').value = data.debitur; document.getElementById('pk-plafon').value = formatRupiah(data.plafon.toString()); document.querySelector('#modal-pk select[name="pilihCabang"]').value = storeData['cabang'].find(c=>c.kodePK===data.cabang)?.kodeSM+"|"+storeData['cabang'].find(c=>c.kodePK===data.cabang)?.kodePK; }, 500);
-        document.getElementById('title-pk').innerHTML='<i class="fa-solid fa-edit text-primary"></i> Edit PK'; openModal('modal-pk');
+        const data = (storeData[jenis] || []).find(d => normalizeId(d.id) === normalizeId(id));
+        if (!data) return;
+
+        document.getElementById('idPK').value = data.id || '';
+        document.getElementById('title-pk').innerHTML = '<i class="fa-solid fa-edit text-primary"></i> Edit PK';
+
+        // Load dropdown SPPK dan seluruh referensi terlebih dahulu. Jangan
+        // menggunakan setTimeout tetap karena kecepatan jaringan tidak pasti.
+        await populatePKForm();
+
+        const form = document.getElementById('modal-pk');
+        const setValue = (selector, value) => {
+            const el = form ? form.querySelector(selector) : null;
+            if (!el) return;
+            const wanted = value == null ? '' : String(value).trim();
+            el.value = wanted;
+            // Jika kode referensi belum ada di dropdown, tambahkan opsi sementara
+            // agar nilai existing tetap terlihat dan tidak hilang saat diedit.
+            if (wanted && el.tagName === 'SELECT' && !Array.from(el.options).some(o => o.value === wanted)) {
+                const opt = document.createElement('option');
+                opt.value = wanted;
+                opt.textContent = wanted + ' (nilai existing)';
+                el.appendChild(opt);
+                el.value = wanted;
+            }
+        };
+
+        setValue('select[name="nomorSPPK"]', data.sppkId || '');
+        const sppkSelect = form.querySelector('select[name="nomorSPPK"]');
+        if (sppkSelect) sppkSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+        setValue('input[name="tanggalPK"]', formatDateForInput(data.tanggal));
+        setValue('select[name="golDebitur"]', data.golDebitur || data.kode1 || '');
+        setValue('select[name="jnsPenggunaan"]', data.jnsPenggunaan || data.kode2 || '');
+        setValue('select[name="klasKredit"]', data.klasKredit || data.kode3 || '');
+        setValue('select[name="sektorEko"]', data.sektorEko || data.kode4 || '');
+        setValue('input[name="namaDebitur"]', data.debitur || data.namaDebitur || '');
+        setValue('input[name="plafon"]', formatRupiah(String(data.plafon || '')));
+
+        const cabang = (storeData['cabang'] || []).find(c =>
+            normalizeId(c.kodePK) === normalizeId(data.cabang)
+        );
+        if (cabang) setValue('select[name="pilihCabang"]', `${cabang.kodeSM}|${cabang.kodePK}`);
+
+        openModal('modal-pk');
     } else if (jenis === 'cabang') {
         const data = storeData['cabang'].find(d => d.id === id); if(!data) return;
         document.getElementById('idCabang').value = data.id; document.getElementById('namaCabang').value = data.nama; document.getElementById('kodeSMSK').value = data.kodeSM; document.getElementById('kodePK').value = data.kodePK; document.getElementById('title-cabang').innerHTML = '<i class="fa-solid fa-edit text-primary"></i> Edit Cabang'; openModal('modal-cabang');
@@ -1831,7 +1872,7 @@ async function submitPK(e) {
 
 async function submitDisposisi(e) { e.preventDefault(); const f = e.target; sendFormData('assignDisposisi', { id: f.elements['idSuratDisposisi'].value, staf: f.elements['stafPenerima'].value, pesan: f.elements['pesanDisposisi'].value }, f, 'modal-disposisi', ['surat-masuk', 'disposisi']); }
 
-function populatePKForm() {
+async function populatePKForm() {
 
     const select =
         document.getElementById('select-sppk-induk');
@@ -1930,10 +1971,11 @@ function populatePKForm() {
     // REFERENSI PK
     // ==================================================
 
-    apiPost('getReferensiPK').then(result => {
+    try {
+        const result = await apiPost('getReferensiPK');
 
         if (result.status !== 'success') {
-            return;
+            throw new Error(result.message || 'Referensi PK tidak berhasil dimuat.');
         }
 
         let opsGol =
@@ -1990,14 +2032,10 @@ function populatePKForm() {
         if (klas) klas.innerHTML = opsKlas;
         if (sek) sek.innerHTML = opsSek;
 
-    })
-    .catch(error => {
-
-        console.error(
-            'Gagal mengambil referensi PK:',
-            error
-        );
-    });
+    } catch (error) {
+        console.error('Gagal mengambil referensi PK:', error);
+        showToast('Referensi PK', 'Daftar referensi PK gagal dimuat. Periksa koneksi lalu coba lagi.', 'error');
+    }
 }
 
 function generateLaporanPDF() {
