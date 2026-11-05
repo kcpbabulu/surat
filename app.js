@@ -881,6 +881,39 @@ function changePage(jenis, action) {
 
 // 3. Mesin Utama Pencarian & Paginasi
 // Perhatikan penambahan "resetPage = true" pada parameter
+function parseAppDate(value) {
+    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+    if (value === null || value === undefined || value === '') return null;
+    const raw = String(value).trim();
+    // ISO yyyy-MM-dd / yyyy-MM-ddTHH:mm:ss
+    let m = raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);
+    if (m) {
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        return isNaN(d.getTime()) ? null : d;
+    }
+    // Spreadsheet display format dd/MM/yyyy or dd-MM-yyyy
+    m = raw.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+    if (m) {
+        const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+        return isNaN(d.getTime()) ? null : d;
+    }
+    const parsed = new Date(raw);
+    return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getItemDate(item) {
+    if (!item) return null;
+    const candidates = [
+        item.tanggal, item.tanggalSurat, item.tanggalSPPK, item.tanggalPK,
+        item.createdAt, item.created, item.timestamp, item.waktu, item.batas
+    ];
+    for (const value of candidates) {
+        const parsed = parseAppDate(value);
+        if (parsed) return parsed;
+    }
+    return null;
+}
+
 function applyFilter(jenis, resetPage = true) {
     try {
         let targetData = jenis === 'disposisi' ? 'surat-masuk' : jenis;
@@ -919,14 +952,12 @@ function applyFilter(jenis, resetPage = true) {
 
             let isMatchBulan = true;
             let isMatchTahun = true;
-            if (item.tanggal) {
-                const dateObj = new Date(item.tanggal);
-                if (!isNaN(dateObj.getTime())) {
-                    const itemBulan = String(dateObj.getMonth() + 1).padStart(2, '0');
-                    const itemTahun = String(dateObj.getFullYear());
-                    if (bulanInput && bulanInput.value) isMatchBulan = (itemBulan === bulanInput.value);
-                    if (tahunInput && tahunInput.value) isMatchTahun = (itemTahun === tahunInput.value);
-                }
+            const dateObj = getItemDate(item);
+            if (dateObj) {
+                const itemBulan = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const itemTahun = String(dateObj.getFullYear());
+                if (bulanInput && bulanInput.value) isMatchBulan = (itemBulan === bulanInput.value);
+                if (tahunInput && tahunInput.value) isMatchTahun = (itemTahun === tahunInput.value);
             }
 
             let isMatchJenis = true;
@@ -948,9 +979,12 @@ function applyFilter(jenis, resetPage = true) {
             const sortVal = sortInput.value;
             filteredData.sort((a, b) => {
                 if (sortVal === 'newest' || sortVal === 'oldest') {
-                    let dateA = new Date(a.tanggal || 0).getTime();
-                    let dateB = new Date(b.tanggal || 0).getTime();
-                    return sortVal === 'newest' ? dateB - dateA : dateA - dateB;
+                    const dateA = getItemDate(a);
+                    const dateB = getItemDate(b);
+                    const timeA = dateA ? dateA.getTime() : 0;
+                    const timeB = dateB ? dateB.getTime() : 0;
+                    // Tie-breaker stabil: pertahankan urutan awal jika tanggal sama.
+                    return sortVal === 'newest' ? timeB - timeA : timeA - timeB;
                 }
                 if (sortVal === 'az' || sortVal === 'za') {
                     let textA = String(a.pengirim || a.debitur || a.nomor || '').toLowerCase();
@@ -1640,14 +1674,25 @@ async function sendFormData(action, payload, formEl, modalId, jenisMenuRef) {
             showToast('Tersimpan!', result.message, 'success'); 
             
             if(modalId) formEl.reset(); 
-            if(jenisMenuRef) { if(Array.isArray(jenisMenuRef)) { jenisMenuRef.forEach(ref => loadDataTabel(ref)); } else { loadDataTabel(jenisMenuRef); } }
-            if(jenisMenuRef && !['user','jenis-surat','referensi-pk','cabang'].includes(jenisMenuRef)) loadDashboardStats(); 
+            if (jenisMenuRef) {
+                const refs = Array.isArray(jenisMenuRef) ? jenisMenuRef : [jenisMenuRef];
+                await Promise.all(refs.map(ref => loadDataTabel(ref)));
+            }
+            if (jenisMenuRef && !(Array.isArray(jenisMenuRef) ? jenisMenuRef : [jenisMenuRef])
+                .every(ref => ['user','jenis-surat','referensi-pk','cabang'].includes(ref))) {
+                await loadDashboardStats();
+            } 
         } else {
             showToast('Gagal', result.message, 'error');
         }
-    } catch (error) { 
-        showToast('Koneksi Terputus', 'Gagal mengirim data ke server.', 'error'); 
-    } finally { btn.innerHTML = originalBtnHTML; btn.disabled = false; }
+    } catch (error) {
+        console.error(`[${action}] Gagal menyimpan data:`, error);
+        const message = error && error.message ? error.message : 'Terjadi kesalahan saat mengirim data.';
+        showToast('Gagal Menyimpan', message, 'error');
+    } finally {
+        btn.innerHTML = originalBtnHTML;
+        btn.disabled = false;
+    }
 }
 
 async function submitCabang(e) { e.preventDefault(); const f = e.target; sendFormData('saveCabang', { id: f.elements['idCabang'].value, nama: f.elements['namaCabang'].value, kodeSM: f.elements['kodeSMSK'].value, kodePK: f.elements['kodePK'].value }, f, 'modal-cabang', 'cabang'); }
@@ -1720,11 +1765,11 @@ async function submitSPPK(e) {
         return;
     }
 
-    sendFormData(
+    await sendFormData(
         'upsertSPPK',
         {
             id:
-                f.elements['idSPPK'].value,
+                normalizeId(f.elements['idSPPK'].value),
 
             sumberD1Id:
                 sumberD1Id,
@@ -1815,11 +1860,11 @@ async function submitPK(e) {
         return;
     }
 
-    sendFormData(
+    await sendFormData(
         'upsertPK',
         {
             id:
-                f.elements['idPK'].value,
+                normalizeId(f.elements['idPK'].value),
 
             cabangPK:
                 c[1] || '',
