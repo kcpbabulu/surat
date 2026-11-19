@@ -914,6 +914,48 @@ function getItemDate(item) {
     return null;
 }
 
+// Ambil nomor urut dokumen sebagai angka, bukan membandingkan teks.
+// Contoh: 104/SPPK/BBL/XI/2026 harus lebih besar daripada 099/SPPK/BBL/XI/2026.
+function getDocumentSequence(item) {
+    if (!item) return null;
+
+    const direct = [item.nomorUrut, item.noUrut, item.sequence, item.urutan];
+    for (const value of direct) {
+        if (value !== null && value !== undefined && String(value).trim() !== '') {
+            const n = Number(String(value).replace(/[^0-9-]/g, ''));
+            if (Number.isFinite(n)) return n;
+        }
+    }
+
+    const documentNumbers = [item.nomorSPPK, item.nomorPK, item.nomor, item.noPK];
+    for (const value of documentNumbers) {
+        if (value === null || value === undefined) continue;
+        const match = String(value).trim().match(/^(\d+)/);
+        if (match) return Number(match[1]);
+    }
+    return null;
+}
+
+function compareDocumentRecency(a, b, direction) {
+    const dateA = getItemDate(a);
+    const dateB = getItemDate(b);
+    const timeA = dateA ? dateA.getTime() : -Infinity;
+    const timeB = dateB ? dateB.getTime() : -Infinity;
+
+    // Tanggal tetap menjadi prioritas utama. Jika tanggal sama atau sama-sama kosong,
+    // gunakan nomor urut dokumen terbesar sebagai data yang lebih baru.
+    if (timeA !== timeB) return direction === 'newest' ? timeB - timeA : timeA - timeB;
+
+    const seqA = getDocumentSequence(a);
+    const seqB = getDocumentSequence(b);
+    if (seqA !== null && seqB !== null && seqA !== seqB) {
+        return direction === 'newest' ? seqB - seqA : seqA - seqB;
+    }
+    if (seqA !== null && seqB === null) return -1;
+    if (seqA === null && seqB !== null) return 1;
+    return 0;
+}
+
 function applyFilter(jenis, resetPage = true) {
     try {
         let targetData = jenis === 'disposisi' ? 'surat-masuk' : jenis;
@@ -979,12 +1021,7 @@ function applyFilter(jenis, resetPage = true) {
             const sortVal = sortInput.value;
             filteredData.sort((a, b) => {
                 if (sortVal === 'newest' || sortVal === 'oldest') {
-                    const dateA = getItemDate(a);
-                    const dateB = getItemDate(b);
-                    const timeA = dateA ? dateA.getTime() : 0;
-                    const timeB = dateB ? dateB.getTime() : 0;
-                    // Tie-breaker stabil: pertahankan urutan awal jika tanggal sama.
-                    return sortVal === 'newest' ? timeB - timeA : timeA - timeB;
+                    return compareDocumentRecency(a, b, sortVal);
                 }
                 if (sortVal === 'az' || sortVal === 'za') {
                     let textA = String(a.pengirim || a.debitur || a.nomor || '').toLowerCase();
