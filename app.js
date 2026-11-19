@@ -1,98 +1,161 @@
 // ========================================================
 // --- MESIN PRE-LOADER DATABASE (SPLASH SCREEN) ---
 // ========================================================
+let startupFailedModules = [];
+let startupInProgress = false;
+
+function ensureStartupStatusBanner() {
+    let banner = document.getElementById('startup-status-banner');
+    if (banner) return banner;
+    banner = document.createElement('div');
+    banner.id = 'startup-status-banner';
+    banner.className = 'startup-status-banner hidden';
+    banner.setAttribute('role', 'status');
+    banner.innerHTML = `
+        <div class="startup-status-copy">
+            <strong id="startup-status-title">Sebagian data belum termuat</strong>
+            <span id="startup-status-detail">Periksa koneksi dan coba muat ulang modul.</span>
+        </div>
+        <button type="button" id="startup-retry-button" class="startup-retry-button">
+            <i class="fa-solid fa-rotate"></i><span>Muat ulang data gagal</span>
+        </button>`;
+    const host = document.getElementById('main-screen') || document.body;
+    host.appendChild(banner);
+    banner.querySelector('#startup-retry-button').addEventListener('click', retryFailedStartupModules);
+    return banner;
+}
+
+function updateStartupStatus(failedModules) {
+    const banner = ensureStartupStatusBanner();
+    const title = banner.querySelector('#startup-status-title');
+    const detail = banner.querySelector('#startup-status-detail');
+    const button = banner.querySelector('#startup-retry-button');
+    if (!failedModules.length) {
+        banner.classList.add('hidden');
+        return;
+    }
+    if (title) title.textContent = `${failedModules.length} modul belum berhasil dimuat`;
+    if (detail) detail.textContent = `Modul: ${failedModules.join(', ')}. Aplikasi tetap dapat digunakan; muat ulang setelah koneksi stabil.`;
+    if (button) button.disabled = false;
+    banner.classList.remove('hidden');
+}
+
+async function loadStartupGroup(label, modules, progressValue) {
+    const text = document.getElementById('loader-text');
+    const progress = document.getElementById('loader-progress');
+    if (text) text.textContent = label;
+    if (progress) progress.style.width = `${progressValue}%`;
+
+    const results = await Promise.allSettled(modules.map(module => loadDataTabel(module)));
+    results.forEach((result, index) => {
+        const ok = result.status === 'fulfilled' && result.value === true;
+        if (!ok && !startupFailedModules.includes(modules[index])) startupFailedModules.push(modules[index]);
+    });
+}
+
 async function prefetchAllDatabase() {
+    if (startupInProgress) return;
+    startupInProgress = true;
+    startupFailedModules = [];
+
     const loader = document.getElementById('global-loader');
     const progress = document.getElementById('loader-progress');
     const text = document.getElementById('loader-text');
 
-    if (!loader) return;
-
-    loader.style.display = 'flex';
-    loader.style.opacity = '1';
+    if (loader) {
+        loader.style.display = 'flex';
+        loader.style.opacity = '1';
+        loader.setAttribute('aria-busy', 'true');
+    }
 
     try {
+        await loadStartupGroup('Mengunduh referensi cabang & jenis surat...', ['cabang', 'jenis-surat'], 15);
+        await loadStartupGroup('Memuat Surat Masuk, Surat Keluar & Disposisi...', ['surat-masuk', 'surat-keluar', 'disposisi'], 35);
+        await loadStartupGroup('Menyinkronkan dokumen SPPK & PK...', ['sppk', 'pk'], 65);
+        await loadStartupGroup('Memuat database arsip...', ['arsip', 'arsip-kredit'], 85);
 
-        // ==================================================
-        // 1. DATA REFERENSI
-        // ==================================================
-        if (text) text.innerText = 'Mengunduh referensi cabang & identitas...';
-        if (progress) progress.style.width = '15%';
+        try {
+            refreshDropdownTransaksi();
+        } catch (refreshError) {
+            console.error('[startup] Gagal menyegarkan dropdown:', refreshError);
+            if (!startupFailedModules.includes('dropdown referensi')) startupFailedModules.push('dropdown referensi');
+        }
 
-        await Promise.all([loadDataTabel('cabang'), loadDataTabel('jenis-surat')]);
-
-        // ==================================================
-        // 2. DATA SURAT
-        // ==================================================
-        if (text) text.innerText = 'Menarik riwayat Surat Masuk, Keluar & Disposisi...';
-        if (progress) progress.style.width = '35%';
-
-        await Promise.all([
-            loadDataTabel('surat-masuk'),
-            loadDataTabel('surat-keluar'),
-            loadDataTabel('disposisi')
-        ]);
-
-        // ==================================================
-        // 3. DATA KREDIT
-        // ==================================================
-        if (text) text.innerText = 'Menyinkronkan dokumen SPPK & PK...';
-        if (progress) progress.style.width = '65%';
-
-        await Promise.all([
-            loadDataTabel('sppk'),
-            loadDataTabel('pk')
-        ]);
-
-        // ==================================================
-        // 4. DATA ARSIP
-        // ==================================================
-        if (text) text.innerText = 'Memuat Database Arsip DAKOPEN...';
-        if (progress) progress.style.width = '85%';
-
-        await Promise.all([
-            loadDataTabel('arsip'),
-            loadDataTabel('arsip-kredit')
-        ]);
-
-        // ==================================================
-        // 5. REFRESH DROPDOWN
-        // ==================================================
-        refreshDropdownTransaksi();
-
-        // ==================================================
-        // 6. SELESAI
-        // ==================================================
-        if (text) text.innerText = 'Database siap! Membuka aplikasi...';
-
+        if (text) text.textContent = startupFailedModules.length
+            ? 'Aplikasi siap dengan sebagian data. Modul yang gagal dapat dimuat ulang.'
+            : 'Database siap! Membuka aplikasi...';
         if (progress) {
             progress.style.width = '100%';
-            progress.style.background = '#34D399';
+            progress.style.background = startupFailedModules.length ? '#F59E0B' : '#34D399';
         }
 
-        await loadDashboardStats();
-
-        setTimeout(() => {
-            loader.style.opacity = '0';
-
-            setTimeout(() => {
-                loader.style.display = 'none';
-            }, 600);
-
-        }, 800);
+        // Dashboard bersifat tambahan; kegagalannya tidak boleh menahan seluruh aplikasi.
+        try {
+            const dashboardResult = await Promise.race([
+                loadDashboardStats(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Dashboard timeout')), 25000))
+            ]);
+            if (dashboardResult === false && !startupFailedModules.includes('dashboard')) {
+                startupFailedModules.push('dashboard');
+            }
+        } catch (dashboardError) {
+            console.warn('[startup] Dashboard belum termuat:', dashboardError);
+            if (!startupFailedModules.includes('dashboard')) startupFailedModules.push('dashboard');
+        }
 
     } catch (error) {
-
-        console.error('Gagal Pre-fetch:', error);
-
-        if (text) {
-            text.innerText = 'Koneksi terputus! Gagal memuat database.';
-            text.style.color = '#FCA5A5';
+        console.error('[prefetchAllDatabase]', error);
+        if (!startupFailedModules.includes('inisialisasi data')) startupFailedModules.push('inisialisasi data');
+        if (text) text.textContent = 'Sebagian data gagal dimuat. Aplikasi tetap dibuka.';
+        if (progress) progress.style.background = '#F59E0B';
+    } finally {
+        if (loader) {
+            loader.setAttribute('aria-busy', 'false');
+            loader.style.opacity = '0';
+            setTimeout(() => {
+                loader.style.display = 'none';
+                loader.style.opacity = '1';
+            }, 250);
         }
+        updateStartupStatus(startupFailedModules);
+        startupInProgress = false;
+    }
+}
 
-        if (progress) {
-            progress.style.background = '#EF4444';
+async function retryFailedStartupModules() {
+    if (startupInProgress || !startupFailedModules.length) return;
+    const button = document.getElementById('startup-retry-button');
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Memuat ulang...</span>';
+    }
+    const modules = [...startupFailedModules];
+    startupFailedModules = [];
+    startupInProgress = true;
+    try {
+        const regularModules = modules.filter(m => m !== 'dashboard' && m !== 'dropdown referensi' && m !== 'inisialisasi data');
+        const results = await Promise.allSettled(regularModules.map(loadDataTabel));
+        results.forEach((result, index) => {
+            if (result.status !== 'fulfilled' || result.value !== true) startupFailedModules.push(regularModules[index]);
+        });
+        if (modules.includes('dashboard')) {
+            try {
+                const dashboardOk = await loadDashboardStats();
+                if (dashboardOk === false) startupFailedModules.push('dashboard');
+            } catch (e) { startupFailedModules.push('dashboard'); }
         }
+        if (modules.includes('dropdown referensi')) {
+            try { refreshDropdownTransaksi(); }
+            catch (e) { startupFailedModules.push('dropdown referensi'); }
+        }
+    } finally {
+        startupInProgress = false;
+        updateStartupStatus(startupFailedModules);
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i class="fa-solid fa-rotate"></i><span>Muat ulang data gagal</span>';
+        }
+        if (!startupFailedModules.length) showToast('Sinkronisasi Berhasil', 'Seluruh modul berhasil dimuat.', 'success');
     }
 }
 
@@ -212,31 +275,69 @@ function getAuthToken() {
 
 async function apiPost(action, payload = {}, options = {}) {
     const bodyPayload = { ...(payload || {}) };
-    const needsAuth = !['authenticate', 'initApp', 'getConfig'].includes(action) && options.skipAuth !== true;
+    const needsAuth = !['authenticate', 'initApp', 'getConfig', 'logout'].includes(action) && options.skipAuth !== true;
     if (needsAuth) {
         const token = getAuthToken();
         if (!token) throw new Error('Sesi login tidak ditemukan. Silakan login kembali.');
         bodyPayload.authToken = token;
     }
-    const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action, payload: bodyPayload }) });
-    const result = await response.json();
-    if (result.status === 'error' && /sesi|login|akses ditolak/i.test(result.message || '')) { sessionStorage.removeItem('bankaltimtara_auth_token'); if (currentUser) currentUser.authToken = ''; }
-    return result;
+
+    const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 25000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action, payload: bodyPayload }),
+            signal: controller.signal
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server merespons HTTP ${response.status}.`);
+        }
+
+        let result;
+        try {
+            result = await response.json();
+        } catch (parseError) {
+            throw new Error('Respons server bukan JSON yang valid. Periksa deployment Web App.');
+        }
+
+        if (result && result.status === 'error' && /sesi|login|akses ditolak/i.test(result.message || '')) {
+            sessionStorage.removeItem('bankaltimtara_auth_token');
+            if (currentUser) currentUser.authToken = '';
+        }
+        return result;
+    } catch (error) {
+        if (error && error.name === 'AbortError') {
+            throw new Error(`Permintaan "${action}" melewati batas waktu ${Math.round(timeoutMs / 1000)} detik. Coba muat ulang modul.`);
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeoutId);
+    }
 }
 
 async function initSystem() {
+    const initScreen = document.getElementById('init-screen');
+    const loginScreen = document.getElementById('login-screen');
     try {
-        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'initApp' }) });
-        const result = await response.json();
-        if(result.status === 'success') { 
-            await loadConfig(); 
-            setTimeout(() => { 
-                document.getElementById('init-screen').classList.add('hidden'); 
-                document.getElementById('login-screen').classList.remove('hidden'); 
-            }, 800); 
-        } else showAlert('Error Sistem', result.message, 'error');
-    } catch (error) { 
-        setTimeout(() => { document.getElementById('init-screen').classList.add('hidden'); document.getElementById('login-screen').classList.remove('hidden'); showAlert('Mode Offline', 'UI berjalan tanpa koneksi backend.', 'info'); }, 1000); 
+        const result = await apiPost('initApp', {}, { skipAuth: true, timeoutMs: 20000 });
+        if (result.status !== 'success') throw new Error(result.message || 'Inisialisasi sistem gagal.');
+        await loadConfig();
+        setTimeout(() => {
+            if (initScreen) initScreen.classList.add('hidden');
+            if (loginScreen) loginScreen.classList.remove('hidden');
+        }, 350);
+    } catch (error) {
+        console.error('[initSystem]', error);
+        setTimeout(() => {
+            if (initScreen) initScreen.classList.add('hidden');
+            if (loginScreen) loginScreen.classList.remove('hidden');
+            showAlert('Koneksi Server', error.message || 'Server belum dapat dihubungi. Silakan coba login atau muat ulang halaman.', 'error');
+        }, 350);
     }
 }
 
@@ -406,8 +507,12 @@ async function loadDashboardStats() {
                     if(!sessionStorage.getItem('notified_tasks')) { setTimeout(() => { showAlert('Tugas Baru Masuk!', `Anda memiliki ${myTasks.length} surat disposisi baru yang harus segera ditindaklanjuti.`, 'info'); sessionStorage.setItem('notified_tasks', 'true'); }, 1500); }
                 } else { notifBell.classList.add('hidden'); }
             }
-        } 
-    } catch (e) { console.error(e); }
+        }
+        return true;
+    } catch (e) {
+        console.error('[loadDashboardStats]', e);
+        return false;
+    }
 }
 
 function formatDateShort(dateStr) { if(!dateStr) return ''; const d = new Date(dateStr); return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`; }
@@ -521,7 +626,11 @@ function populateCabangFilters() {
 // --- MESIN PENARIK DATA UTAMA (TABEL & SKELETON) ---
 // ========================================================
 async function loadDataTabel(jenis) {
-    const tbody = document.getElementById(`tbody-${jenis}`); if(!tbody) return;
+    const tbody = document.getElementById(`tbody-${jenis}`);
+    if (!tbody) {
+        console.warn(`[loadDataTabel] Container tbody-${jenis} tidak ditemukan; pemuatan dilewati.`);
+        return false;
+    }
     
     // Animasi Skeleton Loading
     let skeletonHtml = '';
@@ -579,14 +688,21 @@ async function loadDataTabel(jenis) {
                 refreshDropdownTransaksi(); 
                 
                 applyFilter(jenis); // Tampilkan ke layar menggunakan filter
-            } else { 
-                renderHTMLTabel(jenis, result.data, tbody); 
+            } else {
+                renderHTMLTabel(jenis, result.data, tbody);
             }
+            return true;
         } else {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding:20px;">Gagal: ${result.message}</td></tr>`;
+            const message = (result && result.message) ? result.message : 'Server tidak mengembalikan status sukses.';
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--danger);padding:20px;">Gagal: ${escapeHtml(String(message))}</td></tr>`;
+            console.error(`[loadDataTabel:${jenis}]`, message);
+            return false;
         }
-    } catch (error) { 
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding:20px;">Gagal terhubung ke server.</td></tr>`; 
+    } catch (error) {
+        const message = error && error.message ? error.message : 'Gagal memuat data.';
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--danger);padding:20px;">${escapeHtml(String(message))}</td></tr>`;
+        console.error(`[loadDataTabel:${jenis}]`, error);
+        return false;
     }
 }
 
@@ -886,19 +1002,56 @@ function parseAppDate(value) {
     if (value === null || value === undefined || value === '') return null;
     const raw = String(value).trim();
     // ISO yyyy-MM-dd / yyyy-MM-ddTHH:mm:ss
-    let m = raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);
+    let m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
     if (m) {
         const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
         return isNaN(d.getTime()) ? null : d;
     }
     // Spreadsheet display format dd/MM/yyyy or dd-MM-yyyy
-    m = raw.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+    m = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
     if (m) {
         const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
         return isNaN(d.getTime()) ? null : d;
     }
     const parsed = new Date(raw);
     return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getDocumentSequence(item) {
+    if (!item) return null;
+    const candidates = [
+        item.nomorSPPK, item.nomorPK, item.nomor, item.nomorSurat,
+        item.noUrut, item.nomorUrut, item.nomorUrutBersama, item.noUrutBersama,
+        item.id
+    ];
+    for (const candidate of candidates) {
+        if (candidate === null || candidate === undefined || candidate === '') continue;
+        const raw = String(candidate).trim();
+        // Prefer the first numeric segment before a slash; for plain numeric IDs use full value.
+        const first = raw.match(/^\s*(\d{1,12})(?=\s*\/|\s*$)/);
+        if (first) return Number(first[1]);
+        const nums = raw.match(/\d+/g);
+        if (nums && nums.length) return Number(nums[0]);
+    }
+    return null;
+}
+
+function compareDocumentRecords(a, b, direction = 'newest') {
+    const dateA = getItemDate(a);
+    const dateB = getItemDate(b);
+    const timeA = dateA ? dateA.getTime() : 0;
+    const timeB = dateB ? dateB.getTime() : 0;
+    const dateDiff = timeA - timeB;
+    const seqA = getDocumentSequence(a);
+    const seqB = getDocumentSequence(b);
+    const seqDiff = (seqA == null ? -1 : seqA) - (seqB == null ? -1 : seqB);
+
+    if (direction === 'oldest') {
+        if (dateDiff !== 0) return dateDiff;
+        return seqDiff;
+    }
+    if (dateDiff !== 0) return -dateDiff;
+    return -seqDiff;
 }
 
 function getItemDate(item) {
@@ -912,48 +1065,6 @@ function getItemDate(item) {
         if (parsed) return parsed;
     }
     return null;
-}
-
-// Ambil nomor urut dokumen sebagai angka, bukan membandingkan teks.
-// Contoh: 104/SPPK/BBL/XI/2026 harus lebih besar daripada 099/SPPK/BBL/XI/2026.
-function getDocumentSequence(item) {
-    if (!item) return null;
-
-    const direct = [item.nomorUrut, item.noUrut, item.sequence, item.urutan];
-    for (const value of direct) {
-        if (value !== null && value !== undefined && String(value).trim() !== '') {
-            const n = Number(String(value).replace(/[^0-9-]/g, ''));
-            if (Number.isFinite(n)) return n;
-        }
-    }
-
-    const documentNumbers = [item.nomorSPPK, item.nomorPK, item.nomor, item.noPK];
-    for (const value of documentNumbers) {
-        if (value === null || value === undefined) continue;
-        const match = String(value).trim().match(/^(\d+)/);
-        if (match) return Number(match[1]);
-    }
-    return null;
-}
-
-function compareDocumentRecency(a, b, direction) {
-    const dateA = getItemDate(a);
-    const dateB = getItemDate(b);
-    const timeA = dateA ? dateA.getTime() : -Infinity;
-    const timeB = dateB ? dateB.getTime() : -Infinity;
-
-    // Tanggal tetap menjadi prioritas utama. Jika tanggal sama atau sama-sama kosong,
-    // gunakan nomor urut dokumen terbesar sebagai data yang lebih baru.
-    if (timeA !== timeB) return direction === 'newest' ? timeB - timeA : timeA - timeB;
-
-    const seqA = getDocumentSequence(a);
-    const seqB = getDocumentSequence(b);
-    if (seqA !== null && seqB !== null && seqA !== seqB) {
-        return direction === 'newest' ? seqB - seqA : seqA - seqB;
-    }
-    if (seqA !== null && seqB === null) return -1;
-    if (seqA === null && seqB !== null) return 1;
-    return 0;
 }
 
 function applyFilter(jenis, resetPage = true) {
@@ -1021,7 +1132,7 @@ function applyFilter(jenis, resetPage = true) {
             const sortVal = sortInput.value;
             filteredData.sort((a, b) => {
                 if (sortVal === 'newest' || sortVal === 'oldest') {
-                    return compareDocumentRecency(a, b, sortVal);
+                    return compareDocumentRecords(a, b, sortVal);
                 }
                 if (sortVal === 'az' || sortVal === 'za') {
                     let textA = String(a.pengirim || a.debitur || a.nomor || '').toLowerCase();
@@ -2163,8 +2274,7 @@ async function handleLogin(e) {
     const inputPass = document.getElementById('login-password').value;
 
     try {
-        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'authenticate', payload: { username: inputUser, password: inputPass } }) });
-        const result = await res.json();
+        const result = await apiPost('authenticate', { username: inputUser, password: inputPass }, { skipAuth: true, timeoutMs: 20000 });
         if (result.status !== 'success' || !result.data) throw new Error(result.message || 'Autentikasi gagal.');
         currentUser = result.data;
         if (!currentUser.authToken) throw new Error('Token sesi tidak diterima dari server.');
@@ -2843,3 +2953,200 @@ document.addEventListener('change', function(e) {
         );
     }
 });
+
+// ========================================================
+// GLOBAL SEARCH / COMMAND PALETTE — SUPERAPP
+// Shortcut: Ctrl+K (Windows/Linux) or Cmd+K (macOS)
+// ========================================================
+const SUPERAPP_SEARCH_MODULES = [
+    ['surat-masuk', 'Surat Masuk'], ['surat-keluar', 'Surat Keluar'],
+    ['disposisi', 'Disposisi'], ['sppk', 'SPPK'], ['pk', 'PK'],
+    ['arsip', 'Arsip Surat'], ['arsip-kredit', 'Arsip Kredit']
+];
+
+function ensureGlobalSearchUI() {
+    let overlay = document.getElementById('superapp-global-search');
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.id = 'superapp-global-search';
+    overlay.className = 'superapp-search-overlay hidden';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Pencarian seluruh aplikasi');
+    overlay.innerHTML = `
+      <div class="superapp-search-panel">
+        <div class="superapp-search-head">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="superapp-search-input" type="search" autocomplete="off"
+            placeholder="Cari nama, nomor surat, debitur, SPPK, PK, atau Loan ID..." />
+          <kbd>ESC</kbd>
+        </div>
+        <div id="superapp-search-meta" class="superapp-search-meta">Cari di seluruh modul yang dapat Anda akses.</div>
+        <div id="superapp-search-results" class="superapp-search-results">
+          <div class="superapp-search-empty">Mulai mengetik untuk mencari dokumen.</div>
+        </div>
+        <div class="superapp-search-foot"><span>↑ ↓ untuk navigasi</span><span>Enter untuk membuka</span><span>Ctrl K untuk menutup</span></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('mousedown', e => { if (e.target === overlay) closeGlobalSearch(); });
+    const input = overlay.querySelector('#superapp-search-input');
+    input.addEventListener('input', () => renderGlobalSearchResults(input.value));
+    input.addEventListener('keydown', handleGlobalSearchKeydown);
+    return overlay;
+}
+
+function openGlobalSearch() {
+    const overlay = ensureGlobalSearchUI();
+    overlay.classList.remove('hidden');
+    const input = overlay.querySelector('#superapp-search-input');
+    input.value = '';
+    renderGlobalSearchResults('');
+    requestAnimationFrame(() => input.focus());
+}
+
+function closeGlobalSearch() {
+    const overlay = document.getElementById('superapp-global-search');
+    if (overlay) overlay.classList.add('hidden');
+}
+
+function getGlobalSearchRecords(query) {
+    const words = normalizeText(query).split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
+    const results = [];
+    SUPERAPP_SEARCH_MODULES.forEach(([module, label]) => {
+        const dataKey = module === 'disposisi' ? 'surat-masuk' : module;
+        const records = Array.isArray(storeData[dataKey]) ? storeData[dataKey] : [];
+        records.forEach(item => {
+            if (!item) return;
+            const haystack = normalizeText(Object.entries(item)
+                .filter(([key]) => !/password|token|secret|fileurl/i.test(key))
+                .map(([, value]) => value == null ? '' : String(value)).join(' '));
+            if (words.every(word => haystack.includes(word))) {
+                const title = item.nomorSPPK || item.nomorPK || item.nomor || item.loanId || item.loanID || item.debitur || item.pengirim || item.namaDebitur || item.nama || 'Dokumen';
+                const subtitle = [item.debitur || item.pengirim || item.namaDebitur || item.nama, item.tanggal || item.tanggalSPPK || item.tanggalPK, item.cabang].filter(Boolean).join(' • ');
+                results.push({ module, label, item, title: String(title), subtitle: String(subtitle) });
+            }
+        });
+    });
+    results.sort((a,b) => compareDocumentRecords(a.item,b.item,'newest'));
+    return results.slice(0, 30);
+}
+
+function renderGlobalSearchResults(query) {
+    const overlay = ensureGlobalSearchUI();
+    const host = overlay.querySelector('#superapp-search-results');
+    const meta = overlay.querySelector('#superapp-search-meta');
+    host.replaceChildren();
+    if (!String(query || '').trim()) {
+        meta.textContent = 'Cari di seluruh modul yang dapat Anda akses.';
+        const empty = document.createElement('div');
+        empty.className = 'superapp-search-empty';
+        empty.textContent = 'Mulai mengetik untuk mencari dokumen.';
+        host.appendChild(empty);
+        return;
+    }
+    const results = getGlobalSearchRecords(query);
+    meta.textContent = `${results.length} hasil ditampilkan (maksimal 30).`;
+    if (!results.length) {
+        const empty = document.createElement('div');
+        empty.className = 'superapp-search-empty';
+        empty.textContent = 'Tidak ada dokumen yang cocok dengan pencarian.';
+        host.appendChild(empty);
+        return;
+    }
+    results.forEach((result, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'superapp-search-result';
+        button.dataset.index = String(index);
+        const icon = document.createElement('span');
+        icon.className = 'superapp-search-result-icon';
+        icon.innerHTML = '<i class="fa-solid fa-file-lines"></i>';
+        const content = document.createElement('span');
+        content.className = 'superapp-search-result-content';
+        const title = document.createElement('strong');
+        title.textContent = result.title;
+        const subtitle = document.createElement('small');
+        subtitle.textContent = result.subtitle || result.label;
+        const tag = document.createElement('span');
+        tag.className = 'superapp-search-result-tag';
+        tag.textContent = result.label;
+        content.append(title, subtitle);
+        button.append(icon, content, tag);
+        button.addEventListener('click', () => openGlobalSearchResult(result));
+        host.appendChild(button);
+    });
+    overlay._searchResults = results;
+    overlay._searchActiveIndex = 0;
+    setGlobalSearchActiveResult(0);
+}
+
+function setGlobalSearchActiveResult(index) {
+    const overlay = document.getElementById('superapp-global-search');
+    if (!overlay) return;
+    const buttons = [...overlay.querySelectorAll('.superapp-search-result')];
+    if (!buttons.length) return;
+    const next = Math.max(0, Math.min(index, buttons.length - 1));
+    overlay._searchActiveIndex = next;
+    buttons.forEach((button, i) => {
+        button.classList.toggle('active', i === next);
+        if (i === next) button.scrollIntoView({ block: 'nearest' });
+    });
+}
+
+function handleGlobalSearchKeydown(event) {
+    const overlay = document.getElementById('superapp-global-search');
+    const buttons = overlay ? overlay.querySelectorAll('.superapp-search-result') : [];
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setGlobalSearchActiveResult((overlay._searchActiveIndex || 0) + 1);
+    } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setGlobalSearchActiveResult((overlay._searchActiveIndex || 0) - 1);
+    } else if (event.key === 'Enter' && buttons.length) {
+        event.preventDefault();
+        buttons[overlay._searchActiveIndex || 0].click();
+    } else if (event.key === 'Escape') {
+        closeGlobalSearch();
+    }
+}
+
+function openGlobalSearchResult(result) {
+    closeGlobalSearch();
+    navigate(result.module);
+    const search = document.getElementById(`search-${result.module}`);
+    if (search) {
+        const value = result.title || result.item.debitur || result.item.pengirim || '';
+        search.value = value;
+        applyFilter(result.module);
+    }
+    if (result.item && result.item.id) {
+        setTimeout(() => {
+            try { viewDetail(result.module, result.item.id); } catch (error) { console.warn('[global-search] detail:', error); }
+        }, 120);
+    }
+}
+
+function installSuperAppKeyboardShortcuts() {
+    if (window.__superAppShortcutsInstalled) return;
+    window.__superAppShortcutsInstalled = true;
+    document.addEventListener('keydown', event => {
+        const target = event.target;
+        const typing = target && (target.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(target.tagName));
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+            event.preventDefault();
+            if (document.getElementById('main-screen')?.classList.contains('hidden')) return;
+            openGlobalSearch();
+            return;
+        }
+        if (event.key === 'Escape') closeGlobalSearch();
+        if (!typing && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            const shortcuts = { '1':'dashboard', '2':'surat-masuk', '3':'surat-keluar', '4':'disposisi', '5':'sppk', '6':'pk', '7':'arsip', '8':'arsip-kredit', '9':'laporan' };
+            if (shortcuts[event.key] && !document.getElementById('main-screen')?.classList.contains('hidden')) {
+                navigate(shortcuts[event.key]);
+            }
+        }
+    });
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installSuperAppKeyboardShortcuts); else installSuperAppKeyboardShortcuts();
