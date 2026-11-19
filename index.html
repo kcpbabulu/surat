@@ -275,6 +275,9 @@ html[data-theme="dark"] .filter-container { background: var(--bg-card); border-c
            <header class="topbar">
                 <button class="btn-icon mobile-only" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
                 <h2 id="page-title" class="page-title" style="margin:0; font-size:1.5rem;">Dashboard</h2>
+                <button type="button" class="superapp-global-search-trigger" onclick="openGlobalSearch()" aria-label="Cari di seluruh aplikasi">
+                    <i class="fa-solid fa-magnifying-glass"></i><span>Cari dokumen...</span><kbd>Ctrl K</kbd>
+                </button>
                 <div class="topbar-actions flex-gap">
                     <div class="notif-bell hidden" id="topbar-notif" onclick="navigate('disposisi')">
                         <i class="fa-solid fa-bell text-secondary" style="font-size:1.3rem;"></i>
