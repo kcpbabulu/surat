@@ -632,3 +632,95 @@ html[data-theme="dark"] .filter-container { background: var(--bg-card); border-c
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ==========================================================
+   BANKALTIMTARA SUPERAPP PHASE 1 — STARTUP STATUS / RECOVERY
+   ========================================================== */
+.startup-status-banner {
+  position: fixed;
+  z-index: 1200;
+  left: max(16px, env(safe-area-inset-left));
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 14px 16px;
+  color: var(--text-main, #1c2b3e);
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #e3eaf2);
+  border-left: 4px solid #d88911;
+  border-radius: 14px;
+  box-shadow: 0 12px 34px rgba(26,54,93,.16);
+}
+.startup-status-banner.hidden { display: none !important; }
+.startup-status-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.startup-status-copy strong { font-size: .92rem; }
+.startup-status-copy span { color: var(--text-secondary, #66778c); font-size: .82rem; overflow-wrap: anywhere; }
+.startup-retry-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 42px; padding: 9px 14px; flex: 0 0 auto;
+  color: #fff; background: var(--primary, #0879d9); border: 0; border-radius: 10px;
+  font-weight: 800;
+}
+.startup-retry-button:disabled { opacity: .65; }
+@media (max-width: 640px) {
+  .startup-status-banner { left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; }
+  .startup-retry-button { width: 100%; min-height: 46px; }
+}
+
+[data-theme="dark"] .startup-status-banner { color: var(--text-main, #e7edf5); background: var(--bg-card, #172235); border-color: var(--border, #34445a); }
+
+
+/* ==========================================================
+   SUPERAPP PHASE 2-5 UI LAYER — GLOBAL SEARCH & ADAPTIVE UX
+   ========================================================== */
+.superapp-global-search-trigger {
+  display:flex; align-items:center; gap:10px; min-width:210px; max-width:340px;
+  padding:9px 12px; color:var(--text-secondary); background:var(--bg-body);
+  border:1px solid var(--border); border-radius:12px; cursor:pointer;
+  font:inherit; font-size:.86rem; text-align:left;
+}
+.superapp-global-search-trigger span { flex:1; }
+.superapp-global-search-trigger kbd, .superapp-search-head kbd {
+  padding:3px 6px; border:1px solid var(--border); border-radius:6px;
+  background:var(--bg-card); color:var(--text-secondary); font-size:.72rem;
+}
+.superapp-search-overlay {
+  position:fixed; inset:0; z-index:2000; display:flex; align-items:flex-start;
+  justify-content:center; padding: min(12vh,100px) 16px 24px;
+  background:rgba(10,22,39,.48); backdrop-filter:blur(5px);
+}
+.superapp-search-overlay.hidden { display:none !important; }
+.superapp-search-panel {
+  width:min(720px,100%); max-height:min(78vh,760px); display:flex; flex-direction:column;
+  overflow:hidden; background:var(--bg-card); color:var(--text-main);
+  border:1px solid var(--border); border-radius:18px; box-shadow:0 24px 80px rgba(0,0,0,.25);
+}
+.superapp-search-head { display:flex; align-items:center; gap:12px; padding:16px 18px; border-bottom:1px solid var(--border); }
+.superapp-search-head>i { color:var(--primary); }
+.superapp-search-head input { flex:1; min-width:0; border:0; outline:0; background:transparent; color:var(--text-main); font:inherit; font-size:1rem; }
+.superapp-search-meta { padding:9px 18px; color:var(--text-secondary); font-size:.78rem; border-bottom:1px solid var(--border); }
+.superapp-search-results { overflow:auto; padding:8px; }
+.superapp-search-empty { padding:30px 18px; color:var(--text-secondary); text-align:center; }
+.superapp-search-result { width:100%; display:flex; align-items:center; gap:12px; padding:12px; border:0; border-radius:11px; background:transparent; color:inherit; text-align:left; cursor:pointer; }
+.superapp-search-result:hover,.superapp-search-result.active { background:var(--primary-light); }
+.superapp-search-result-icon { width:38px; height:38px; flex:0 0 38px; display:grid; place-items:center; color:var(--primary); background:var(--primary-light); border-radius:10px; }
+.superapp-search-result-content { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.superapp-search-result-content strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.9rem; }
+.superapp-search-result-content small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-secondary); }
+.superapp-search-result-tag { flex:0 0 auto; padding:4px 8px; border-radius:20px; background:var(--bg-body); color:var(--text-secondary); font-size:.7rem; }
+.superapp-search-foot { display:flex; justify-content:space-between; gap:8px; padding:10px 16px; border-top:1px solid var(--border); color:var(--text-secondary); font-size:.7rem; }
+html[data-theme="dark"] .superapp-search-panel { background:var(--bg-card); }
+@media(max-width:760px) {
+  .superapp-global-search-trigger { min-width:42px; width:42px; height:42px; justify-content:center; padding:0; }
+  .superapp-global-search-trigger span,.superapp-global-search-trigger kbd { display:none; }
+  .superapp-search-overlay { padding: max(12px,env(safe-area-inset-top)) 8px max(12px,env(safe-area-inset-bottom)); align-items:flex-start; }
+  .superapp-search-panel { max-height:calc(100dvh - 24px); border-radius:15px; }
+  .superapp-search-head { padding:13px; }
+  .superapp-search-foot { flex-wrap:wrap; justify-content:center; }
+  .superapp-search-result-tag { display:none; }
+}
